@@ -7,9 +7,12 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
 from paperasse.ingest import SOURCE_CREDIT
-from paperasse.store import FicheStore
+from paperasse.store import MIN_CONFIDENT_MATCH, FicheStore
 
 MAX_RESULTS = 10
+LOW_CONFIDENCE_HINT = (
+    "These results may not match. Rephrase the query in French with official administrative terms."
+)
 PAGE_CHARS = 40_000  # ~10k tokens; covers ~97% of fiches in one page
 
 mcp = MCPServer(
@@ -48,12 +51,20 @@ def search_fiche(query: str, audience: str = "particuliers", limit: int = 5) -> 
 
     Use this first for any question about French paperwork: CAF (APL, RSA, prime d'activité),
     URSSAF, impôts, titre de séjour, carte Vitale, logement social, carte grise, etc.
-    Write the query in French with the key administrative terms (e.g. "APL étudiant",
-    "renouvellement titre de séjour"), not a full sentence.
+    The fiches are in French: always translate the user's question into a few French keywords
+    using official administrative terms before calling, even if the user writes in another
+    language (e.g. "I lost my residence permit" -> "perte titre de séjour";
+    "student housing aid" -> "APL étudiant"). Don't pass a full sentence.
 
     Returns up to `limit` (max 10) fiches, best match first, each with id, title, summary,
-    official url and updated_at. Then call get_fiche(id) to read the full text before answering:
-    the summary alone is not enough to answer.
+    official url, updated_at and `match` (0-1: how much of the query the title and summary
+    cover). Then call get_fiche(id) to read the full text before answering: the summary alone
+    is not enough to answer.
+
+    If `low_confidence` is true, the best result probably doesn't answer the question: retry
+    once with different French official terms (synonyms, the name of the benefit or document).
+    If it is still low, don't present these fiches as the answer; say no matching official
+    guide was found.
     """
     if audience.strip().lower() != "particuliers":
         raise ToolError("Only audience='particuliers' is available for now.")
@@ -65,7 +76,11 @@ def search_fiche(query: str, audience: str = "particuliers", limit: int = 5) -> 
             f"No fiche found for {query!r}. Try broader or different French terms "
             "(e.g. 'allocation logement' instead of a full sentence)."
         )
-    return {"results": results, "source": SOURCE_CREDIT}
+    out: dict[str, Any] = {"results": results, "low_confidence": results[0]["match"] < MIN_CONFIDENT_MATCH}
+    if out["low_confidence"]:
+        out["hint"] = LOW_CONFIDENCE_HINT
+    out["source"] = SOURCE_CREDIT
+    return out
 
 
 @mcp.tool()

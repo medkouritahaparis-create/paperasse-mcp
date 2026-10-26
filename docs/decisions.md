@@ -50,3 +50,23 @@ Each entry: context, options, decision, why.
 - **Decision:** (c). A block of type Chapitre/Cas/Situation/Complement/callout/BlocCas/Liste/Tableau/Paragraphe whose XML is identical to an earlier one, and whose rendered text is at least 200 characters, becomes `[Paperasse : identique à « <its title or first words> » plus haut (sous « <2 nearest headings of the first copy> »)]`. Link blocks (online services, offices, references) are never merged, so each case keeps its own "Title (URL)" line. The pointer is clearly marked as coming from Paperasse. It quotes only the official title or opening words and adds no official wording. Also: `Complement` and `Conclusion` titles are now headings; `PourEnSavoirPlus` and `Reference` render as "Title (URL)"; inline links render as `[text](url)` (internal links point to the official page, except acronyms and glossary terms, which have no page and 404); and a table's `<Resume>` ("Ce tableau présente…", never rendered before) is printed above it. Link URLs are stripped before indexing so they don't add noise tokens to search.
 - **Why 200 characters:** a pointer averages about 147 characters. Measured on all fiches (links stripped, pointer lines excluded): no merging 22.3% duplicated; cutoff 400 → 11.5%; **200 → 6.7%**; 150 → 4.2% but pointers grow to 8.9% of all text; 120 → 2.7% with 11.2%. Below 200, pointers replace text of about their own length and make each case harder to read on its own. What remains duplicated is mostly short, case-specific sentences.
 - **Result:** duplicated characters **23.2% → 6.9%** (`python -m scripts.dup_stats`); total text 32.1M → 27.7M characters, even with link URLs added back. `python -m scripts.check_fidelity`: every source `Paragraphe` of all 3,004 fiches is in the output (excluding elements skipped on purpose). Search on the 26 labelled manual-test questions is unchanged (13 at rank 1, 22 in the top 3).
+
+## 2026-10-26 — `low_confidence` flag on weak search results
+
+- **Context:** BM25 with an OR query always returns something. A question with no real match came back with confident-looking results, e.g. "I lost my residence permit what do I do" → SNCF mediator, EU internships, garde alternée.
+- **Signals tried** (on the 26 labelled manual-test questions, plus 15 off-topic, English and no-content queries, using a one-off analysis script; the eval runner in review step 3 makes these numbers reproducible):
+  - **Raw BM25 score of the top result:** doesn't separate them. Off-topic queries score 8–29, good ones 4–24. BM25 has no absolute scale.
+  - **BM25 divided by the number of query terms:** also overlaps (off-topic 1.7–6.3, good 1.3–7.2).
+  - **Share of query words found in the top result's title and summary:** separates better, but the edges are wrong ("avis d'imposition contester", a correct hit, 0.33; "quel temps fait-il" 0.50).
+  - **Same share weighted by word rarity (BM25 IDF from the index), with accent folding and the same 4-letter prefix rule as search:** best. Missing rare words ("PSG", "iPhone", English words, which barely occur in French fiches) weigh more than missing common ones. Adding the breadcrumb to title + summary changed nothing.
+- **Decision:** every result gets `match` (IDF-weighted share of the query in its title + summary, 0–1). The response gets `low_confidence: true` and a `hint` when the top result's `match` is below **0.5** (`MIN_CONFIDENT_MATCH` in `paperasse/store.py`). Results are still returned, so the client can judge. The `search_fiche` docstring now tells the client to translate the user's question into French official keywords before calling, to retry once with other terms on `low_confidence`, and otherwise to say no official guide was found.
+- **Threshold choice:**
+
+  | Threshold | Good queries flagged (false alarms) | Bad queries flagged |
+  |---|---|---|
+  | 0.4 | 2/26 | 10/13 |
+  | **0.5** | **2/26** | **11/13** |
+  | 0.55 | 5/26 | 12/13 |
+
+  (2 more bad queries, "bonjour" and gibberish, return no results and already get the "no fiche found" error.) 0.55 catches one more bad query at the cost of 3 more false alarms; too many warnings teach the client to ignore them. With 0.5, the false alarms are "déclarer un changement de situation à la CAF" and "avis d'imposition contester" (both correct, with titles that use other words). The misses are "quel temps fait-il" (its words also appear in fiche titles) and "cotisations sociales auto-entrepreneur" (no freelancer fiches yet; review step 5).
+- **Limits:** chosen on 41 queries, so the threshold is a first estimate. Re-check it on the eval set (review step 3), which includes no-match questions. Search ranking is unchanged (13/26 at rank 1, 22/26 in the top 3), and a search takes about 2 ms.

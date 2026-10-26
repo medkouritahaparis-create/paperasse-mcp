@@ -18,7 +18,7 @@ uv run pytest
 
 | Tool | What it does |
 |---|---|
-| `search_fiche(query, audience="particuliers", limit=5)` | Best matching service-public.fr fiches: id, title, summary, official URL, last update date |
+| `search_fiche(query, audience="particuliers", limit=5)` | Best matching service-public.fr fiches: id, title, summary, official URL, last update date and a `match` score. Says `low_confidence: true` when the best result probably doesn't answer the question |
 | `get_fiche(id, offset=0)` | Full official text of a fiche, with URL, update date, online services and legal sources; long fiches come in pages |
 
 ## Data and licence

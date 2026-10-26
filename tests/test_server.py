@@ -27,6 +27,26 @@ def test_search_fiche_returns_cited_results():
     assert first["updated_at"] == "2026-09-11"
 
 
+def test_search_fiche_good_match_is_confident():
+    out = main.search_fiche("aide logement étudiant")
+    assert out["low_confidence"] is False
+    assert "hint" not in out
+    assert out["results"][0]["match"] == 1.0
+
+
+def test_search_fiche_weak_match_is_flagged_but_still_returned():
+    out = main.search_fiche("déplacer")  # only in F2's body text
+    assert out["low_confidence"] is True
+    assert out["hint"] == main.LOW_CONFIDENCE_HINT
+    assert out["results"][0]["id"] == "F2"
+    assert out["source"] == SOURCE_CREDIT and out["results"][0]["url"]
+
+
+def test_search_fiche_docstring_tells_client_to_use_french():
+    doc = main.search_fiche.__doc__
+    assert "translate" in doc and "low_confidence" in doc
+
+
 def test_search_fiche_limit_is_capped():
     assert len(main.search_fiche("étudiant", limit=1)["results"]) == 1
     assert len(main.search_fiche("fiche", limit=999)["results"]) <= main.MAX_RESULTS

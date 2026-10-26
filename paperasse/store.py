@@ -7,8 +7,10 @@ data/fiches.jsonl (made by `python -m paperasse.ingest`).
 from __future__ import annotations
 
 import json
+import math
 import re
 import sqlite3
+import unicodedata
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any, Iterable
@@ -30,6 +32,11 @@ pour qu que quel quelle quelles quels qui sa sans se ses si son sont sur ta te
 tes ton tu un une vos votre vous y comment quoi quand combien faut faire puis
 peut dois doit est-ce
 """.split())
+
+# A result is "low confidence" when the query words it contains in its title or
+# summary, weighted by rarity (IDF), cover less than this share of the query.
+# Chosen on labelled and off-topic queries: see docs/decisions.md.
+MIN_CONFIDENT_MATCH = 0.5
 
 _SCHEMA = f"""
 CREATE TABLE fiches (
@@ -93,23 +100,38 @@ def build_index(fiches: Iterable[Fiche | dict[str, Any]], db_path: Path = DB_PAT
     return count
 
 
+def query_terms(query: str) -> list[str]:
+    """Meaningful words of a query, lowercased, deduplicated, stopwords removed."""
+    terms: list[str] = []
+    for w in re.findall(r"\w+", query.lower()):
+        if len(w) >= 2 and w not in STOPWORDS and w not in terms:
+            terms.append(w)
+    return terms
+
+
+def _fts_term(term: str) -> str:
+    # Words of 4+ letters get a prefix match to catch French plurals and
+    # variants ("allocation" -> "allocations").
+    return f'"{term}"' + ("*" if len(term) >= 4 else "")
+
+
 def to_fts_query(query: str) -> str | None:
     """Turn a natural-language question into a safe FTS5 query.
 
     Words are quoted (so user input can't inject FTS syntax) and OR-ed, so a
     fiche doesn't need every word to match; BM25 ranks the best ones first.
-    Words of 4+ letters get a prefix match to catch French plurals and
-    variants ("allocation" -> "allocations"). Returns None if nothing is left.
+    Returns None if nothing is left.
     """
-    words = [w.lower() for w in re.findall(r"\w+", query)]
-    terms = []
-    for w in words:
-        if len(w) < 2 or w in STOPWORDS:
-            continue
-        term = f'"{w}"' + ("*" if len(w) >= 4 else "")
-        if term not in terms:
-            terms.append(term)
-    return " OR ".join(terms) or None
+    return " OR ".join(_fts_term(t) for t in query_terms(query)) or None
+
+
+def _fold(text: str) -> str:
+    """Lowercase and drop accents, like the FTS tokenizer does ("Étudiant" -> "etudiant")."""
+    return "".join(c for c in unicodedata.normalize("NFKD", text.lower()) if not unicodedata.combining(c))
+
+
+def _contains(term: str, words: set[str]) -> bool:
+    return term in words or (len(term) >= 4 and any(w.startswith(term) for w in words))
 
 
 def normalize_id(fiche_id: str) -> str:
@@ -128,9 +150,37 @@ class FicheStore:
             )
         self.conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
+        self._idf_cache: dict[str, float] = {}
+
+    def idf(self, term: str) -> float:
+        """How rare a query word is across fiches (BM25's IDF; higher = rarer)."""
+        if term not in self._idf_cache:
+            n = self.count()
+            df = self.conn.execute(
+                "SELECT count(*) FROM fiches_fts WHERE fiches_fts MATCH ?", (_fts_term(term),)
+            ).fetchone()[0]
+            self._idf_cache[term] = math.log((n - df + 0.5) / (df + 0.5) + 1)
+        return self._idf_cache[term]
+
+    def match(self, query: str, title: str, summary: str) -> float:
+        """Share of the query (weighted by word rarity) found in a result's title or summary.
+
+        1.0 means every query word is there; near 0 means the result was only
+        found through common words or its body text, so it may not be relevant.
+        """
+        terms = [_fold(t) for t in query_terms(query)]
+        if not terms:
+            return 0.0
+        words = set(re.findall(r"\w+", _fold(f"{title} {summary}")))
+        weights = {t: self.idf(t) for t in terms}
+        found = sum(w for t, w in weights.items() if _contains(t, words))
+        return found / sum(weights.values())
 
     def search(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
-        """Best matching fiches for a question, most relevant first."""
+        """Best matching fiches for a question, most relevant first.
+
+        Each result has a `match` score in [0, 1]: see `match()`.
+        """
         fts = to_fts_query(query)
         if fts is None:
             return []
@@ -146,7 +196,10 @@ class FicheStore:
             """,
             (fts, limit),
         ).fetchall()
-        return [dict(r) for r in rows]
+        results = [dict(r) for r in rows]
+        for r in results:
+            r["match"] = round(self.match(query, r["title"], r["summary"]), 2)
+        return results
 
     def get(self, fiche_id: str) -> dict[str, Any] | None:
         """Full fiche by ID, or None if it doesn't exist."""

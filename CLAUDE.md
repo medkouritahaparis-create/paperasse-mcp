@@ -17,7 +17,8 @@ Owner: Taha Medkouri. Personal side project, built on personal time and equipmen
 - Session 2 (cont.): roadmap step 3 started. `.mcp.json` registers the server for Claude Code. A scripted run of 29 real questions found the right fiche in the top 3 for 22/29; see `docs/manual-test-2026-10-26.md`. Key gaps: the *Entreprendre* feed (micro-entreprise/URSSAF) isn't ingested, and long main guides rank below short Q&A fiches.
 - Review fixes (2026-10-26), 6 steps planned: (1) repeated text, (2) low-confidence warning, (3) eval set + runner, (4) ranking against the eval, (5) *Entreprendre* feed, (6) open-source hygiene.
   - Step 1 done: repeated blocks print once and later copies become `[Paperasse : identique à …]` pointers. Complement/Conclusion titles and inline link URLs are kept. Duplicated text went from 23.2% to 6.9%. Checks: `python -m scripts.dup_stats`, `python -m scripts.check_fidelity`.
-- Next step: review step 2, a `low_confidence` signal in `search_fiche`.
+  - Step 2 done: every `search_fiche` result has `match` (IDF-weighted share of the query in its title + summary). Responses have `low_confidence` + `hint` when the top match is below 0.5 (`MIN_CONFIDENT_MATCH`). That flags 11/13 bad queries and 2/26 good ones.
+- Next step: review step 3, the eval set (`evals/questions.jsonl`) and runner (`evals/run.py`).
 
 ## Stack
 - Python 3.11+, managed with `uv`
@@ -53,7 +54,7 @@ paperasse-mcp/
 ## Tools (planned)
 | Tool | Returns |
 |---|---|
-| `search_fiche(query, audience="particuliers")` | Top matching fiches: id, title, short summary, URL |
+| `search_fiche(query, audience="particuliers", limit=5)` | Top matching fiches: id, title, short summary, URL, updated_at, `match`; plus `low_confidence` (+ `hint`) when the best match is weak |
 | `get_fiche(id)` | Full fiche text, last update date, official URL |
 | `get_procedure_steps(id)` | Structured steps and required documents, when present in the fiche |
 | `get_legal_article(code, article)` | Article text + Légifrance URL (phase 2) |

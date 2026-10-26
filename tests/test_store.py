@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from paperasse.ingest import parse_fiche
-from paperasse.store import FicheStore, build_index, to_fts_query
+from paperasse.store import FicheStore, build_index, query_terms, to_fts_query
 from tests.conftest import FICHES, make_fiche
 
 
@@ -79,3 +79,30 @@ def test_link_urls_are_not_indexed(tmp_path):
     assert store.search("example") == []
     # The stored text keeps the link for the client.
     assert "(https://example.gouv.fr/page)" in store.get("F9")["text"]
+
+
+def test_query_terms():
+    assert query_terms("Comment demander l'APL, l'APL ?") == ["demander", "apl"]
+
+
+def test_match_is_share_of_query_in_title_and_summary(store):
+    assert store.match("aide logement étudiant", "Aide au logement pour étudiant", "") == 1.0
+    # Accents and plurals are handled like in search.
+    assert store.match("allocation", "Allocations familiales", "") == 1.0
+    assert store.match("etudiant", "Aide au logement pour étudiant", "") == 1.0
+    assert store.match("recette crêpes", "Aide au logement pour étudiant", "") == 0.0
+    assert store.match("de la", "Aide", "") == 0.0  # only stopwords
+
+
+def test_match_weights_rare_words_more(store):
+    # "étudiant" is in 2 of 4 fiches, "transport" in 1: matching the rarer word counts more.
+    rare = store.match("étudiant transport", "Carte de transport", "")
+    common = store.match("étudiant transport", "Aide pour étudiant", "")
+    assert 0 < common < rare < 1
+
+
+def test_search_results_carry_match(store):
+    hits = store.search("aide logement étudiant")
+    assert hits[0]["match"] == 1.0
+    # Found only through body text ("se déplacer"): weak match.
+    assert store.search("déplacer")[0]["match"] == 0.0
