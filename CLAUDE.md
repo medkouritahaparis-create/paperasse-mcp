@@ -18,7 +18,8 @@ Owner: Taha Medkouri. Personal side project, built on personal time and equipmen
 - Review fixes (2026-10-26), 6 steps planned: (1) repeated text, (2) low-confidence warning, (3) eval set + runner, (4) ranking against the eval, (5) *Entreprendre* feed, (6) open-source hygiene.
   - Step 1 done: repeated blocks print once and later copies become `[Paperasse : identique à …]` pointers. Complement/Conclusion titles and inline link URLs are kept. Duplicated text went from 23.2% to 6.9%. Checks: `python -m scripts.dup_stats`, `python -m scripts.check_fidelity`.
   - Step 2 done: every `search_fiche` result has `match` (IDF-weighted share of the query in its title + summary). Responses have `low_confidence` + `hint` when the top match is below 0.5 (`MIN_CONFIDENT_MATCH`). That flags 11/13 bad queries and 2/26 good ones.
-- Next step: review step 3, the eval set (`evals/questions.jsonl`) and runner (`evals/run.py`).
+  - Step 3 done: `evals/questions.jsonl` (57 questions, labelled from fiche titles) and `evals/run.py`. Baseline (code 4e93a4c): keywords top-1 50% / top-3 85%; sentences 36% / 64%; all 44% / 75%, MRR 0.59. Report in `evals/results/2026-10-26.md`, numbers in the README.
+- Next step: review step 4, improving ranking against the eval (one change at a time, logged with before/after).
 
 ## Stack
 - Python 3.11+, managed with `uv`
@@ -34,6 +35,7 @@ Owner: Taha Medkouri. Personal side project, built on personal time and equipmen
 - Tests: `uv run pytest`
 - Download feed + build `data/fiches.jsonl`: `uv run python -m paperasse.ingest` (add `--no-download` to reparse `data/raw/` only)
 - Build search index `data/paperasse.db` from `data/fiches.jsonl`: `uv run python -m paperasse.store` (the server needs it)
+- Search eval: `uv run python -m evals.run` (writes `evals/results/<date>.md`; `--no-save` to only print). Run it before and after any change that affects search.
 - Text quality checks (after re-ingesting): `uv run python -m scripts.dup_stats` (repeated text %), `uv run python -m scripts.check_fidelity` (every source paragraph reproduced)
 
 ## Target structure

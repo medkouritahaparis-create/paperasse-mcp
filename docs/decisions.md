@@ -70,3 +70,28 @@ Each entry: context, options, decision, why.
 
   (2 more bad queries, "bonjour" and gibberish, return no results and already get the "no fiche found" error.) 0.55 catches one more bad query at the cost of 3 more false alarms; too many warnings teach the client to ignore them. With 0.5, the false alarms are "déclarer un changement de situation à la CAF" and "avis d'imposition contester" (both correct, with titles that use other words). The misses are "quel temps fait-il" (its words also appear in fiche titles) and "cotisations sociales auto-entrepreneur" (no freelancer fiches yet; review step 5).
 - **Limits:** chosen on 41 queries, so the threshold is a first estimate. Re-check it on the eval set (review step 3), which includes no-match questions. Search ranking is unchanged (13/26 at rank 1, 22/26 in the top 3), and a search takes about 2 ms.
+
+## 2026-10-26 — Search eval: question set, labels and metrics
+
+- **Context:** ranking changes (review step 4) and the `low_confidence` threshold need a fixed, reproducible measurement, not eyeballing.
+- **Question set (`evals/questions.jsonl`, 57 questions):**
+  - The 26 labelled manual-test questions (keyword style).
+  - The 3 freelancer manual-test questions, with `expected: []` until the *Entreprendre* feed is ingested (review step 5).
+  - 22 new questions phrased the way people ask (full sentences), across logement, transport, impôts, titre de séjour, santé, CAF, travail, papiers, famille and justice.
+  - 6 with no good answer: 4 off-topic in French, and 2 in English (the server only searches French text; clients are told to translate first).
+  - No personal data.
+- **Labelling rule:** the expected fiche is chosen by browsing the 3,004 fiche titles, never from search output, so the eval doesn't grade the engine against itself. Several ids are allowed when more than one fiche truly answers. "Recherche guidée" hubs (empty text) are never counted as correct. Two candidate questions were dropped because no fiche answers them by title ("numéro fiscal", "renouvellement de titre de séjour" in general).
+- **Metrics (`evals/run.py`, which calls the real `search_fiche`):** top-1, top-3 and MRR@10, overall and split by style. "Keywords" is what the tool docstring asks clients to send; "sentence" is a question sent unchanged, which is the pessimistic case. For `low_confidence`: the share of no-match questions flagged; and on answerable questions, a flag is a *false alarm* when rank 1 is right and a *useful warning* when it is wrong. A first draft counted every flag on an answerable question as a false alarm, which wrongly penalised correct warnings. The runner fails if an expected id has left the database (the feed changes daily), and each report records the search-code commit and the data snapshot.
+- **Baseline (search code 4e93a4c):**
+
+  | Questions | n | Top-1 | Top-3 | MRR@10 |
+  |---|---|---|---|---|
+  | Keywords | 26 | 50% | 85% | 0.68 |
+  | Sentence | 22 | 36% | 64% | 0.50 |
+  | All | 48 | 44% | 75% | 0.59 |
+
+  `low_confidence`: 8/9 no-match questions flagged; 10/27 wrong rank-1 results flagged; 5/21 right rank-1 results flagged (false alarms, 3 of them sentences).
+- **What the baseline shows, for step 4:**
+  - Long main guides are outranked by short Q&A fiches (F2213 naturalisation at rank 9, F19778 RSA at rank 9, F2882 prime d'activité at rank 6).
+  - Sentence queries carry many words that aren't in titles. That also makes `low_confidence` fire on correct answers, so the 0.5 threshold, chosen on keyword queries, should be re-checked against this set.
+  - Some misses are vocabulary gaps ("garant gratuit" vs "Garantie Visale", "enceinte" vs "naissance"), which keyword search can't bridge without synonyms or embeddings. They're out of scope for step 4.
