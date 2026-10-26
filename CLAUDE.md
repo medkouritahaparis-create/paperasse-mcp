@@ -18,7 +18,7 @@ Owner: Taha Medkouri. Personal side project, built on personal time and equipmen
 - Review fixes (2026-10-26), 6 steps planned: (1) repeated text, (2) low-confidence warning, (3) eval set + runner, (4) ranking against the eval, (5) *Entreprendre* feed, (6) open-source hygiene.
   - Step 1 done: repeated blocks print once and later copies become `[Paperasse : identique à …]` pointers. Complement/Conclusion titles and inline link URLs are kept. Duplicated text went from 23.2% to 6.9%. Checks: `python -m scripts.dup_stats`, `python -m scripts.check_fidelity`.
   - Step 2 done: every `search_fiche` result has `match` (IDF-weighted share of the query in its title + summary). Responses have `low_confidence` + `hint` when the top match is below 0.5 (`MIN_CONFIDENT_MATCH`). That flags 11/13 bad queries and 2/26 good ones.
-  - Step 3 done: `evals/questions.jsonl` (57 questions, labelled from fiche titles) and `evals/run.py`. Baseline (code 4e93a4c): keywords top-1 50% / top-3 85%; sentences 36% / 64%; all 44% / 75%, MRR 0.59. Report in `evals/results/2026-10-26.md`, numbers in the README.
+  - Step 3 done: `evals/questions.jsonl` (57 questions, labelled from fiche titles) and `evals/run.py`. Baseline (code 4e93a4c): keywords top-1 50% / top-3 85%; sentences 36% / 64%; all 44% / 75%, MRR 0.59. Report in `evals/results/2026-10-26-4e93a4c.md`, numbers in the README.
   - Step 4 done: the top 50 BM25 hits are re-ranked with a length prior (`LENGTH_PRIOR` = 0.075 in `store.py`). All: top-1 44% → 62%, top-3 75% → 79%, MRR 0.59 → 0.71. Every option tried, kept or rejected, is in `docs/decisions.md`. The `low_confidence` threshold stays at 0.5 (re-check after step 5).
 - Next step: review step 5, ingesting the *Entreprendre* feed (audience `professionnels`).
 
@@ -36,7 +36,7 @@ Owner: Taha Medkouri. Personal side project, built on personal time and equipmen
 - Tests: `uv run pytest`
 - Download feed + build `data/fiches.jsonl`: `uv run python -m paperasse.ingest` (add `--no-download` to reparse `data/raw/` only)
 - Build search index `data/paperasse.db` from `data/fiches.jsonl`: `uv run python -m paperasse.store` (the server needs it)
-- Search eval: `uv run python -m evals.run` (writes `evals/results/<date>.md`; `--no-save` to only print). Run it before and after any change that affects search.
+- Search eval: `uv run python -m evals.run` (writes `evals/results/<date>-<search code commit>.md`; `--no-save` to only print). Run it before and after any change that affects search.
 - Text quality checks (after re-ingesting): `uv run python -m scripts.dup_stats` (repeated text %), `uv run python -m scripts.check_fidelity` (every source paragraph reproduced)
 
 ## Target structure

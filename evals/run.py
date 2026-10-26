@@ -11,7 +11,7 @@ rank-1 result is correct is a false alarm; a flag when it is wrong is a useful
 warning.
 
 Usage: uv run python -m evals.run [--no-save]
-Writes evals/results/<date>.md unless --no-save.
+Writes evals/results/<date>-<search code commit>.md unless --no-save.
 """
 
 from __future__ import annotations
@@ -199,7 +199,10 @@ def main_cli() -> None:
     print(text)
     if "--no-save" not in sys.argv:
         RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-        out = RESULTS_DIR / f"{dt.date.today().isoformat()}.md"
+        # One file per search-code version, so a later run never overwrites a baseline.
+        commit = _git_commit().split()[0]
+        suffix = "-uncommitted" if "uncommitted" in _git_commit() else ""
+        out = RESULTS_DIR / f"{dt.date.today().isoformat()}-{commit}{suffix}.md"
         out.write_text(text, encoding="utf-8")
         print(f"Saved {out.relative_to(EVALS_DIR.parent)}")
 

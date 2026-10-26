@@ -23,15 +23,17 @@ uv run pytest
 
 ## Search quality
 
-Baseline, 2026-10-26 (search code `4e93a4c`, 3,004 *Particuliers* fiches). Measured with [evals/questions.jsonl](evals/questions.jsonl): 57 questions with expected fiches labelled by hand from the fiche titles, not from search results. Full report: [evals/results/2026-10-26.md](evals/results/2026-10-26.md).
+Measured with [evals/questions.jsonl](evals/questions.jsonl): 57 questions with expected fiches labelled by hand from the fiche titles, not from search results. Current results, 2026-10-26 (search code `7f5f470`, 3,004 *Particuliers* fiches), with the first baseline (`4e93a4c`) in brackets:
 
 | Questions | n | Top-1 | Top-3 | MRR@10 |
 |---|---|---|---|---|
-| Keywords, as clients are told to send them ("APL étudiant") | 26 | 50% | 85% | 0.68 |
-| Full sentences, sent as is ("Comment avoir un garant gratuit pour louer ?") | 22 | 36% | 64% | 0.50 |
-| All answerable | 48 | 44% | 75% | 0.59 |
+| Keywords, as clients are told to send them ("APL étudiant") | 26 | 77% (50%) | 85% (85%) | 0.82 (0.68) |
+| Full sentences, sent as is ("Comment avoir un garant gratuit pour louer ?") | 22 | 45% (36%) | 73% (64%) | 0.59 (0.50) |
+| All answerable | 48 | **62%** (44%) | **79%** (75%) | **0.71** (0.59) |
 
-`low_confidence` is set on 8 of 9 questions that have no good answer (off-topic, English, freelancer topics not covered yet). It is also set on 5 of 21 questions whose rank-1 result is right (false alarms).
+The gain comes from one change, a mild boost for longer fiches, so main guides outrank short Q&A spin-offs. Thirteen other ranking ideas were tried and rejected; see [docs/decisions.md](docs/decisions.md). Full reports: [current](evals/results/2026-10-26-7f5f470.md), [baseline](evals/results/2026-10-26-4e93a4c.md).
+
+`low_confidence` is set on 8 of 9 questions that have no good answer (off-topic, English, freelancer topics not covered yet). It is also set on 7 of 30 questions whose rank-1 result is right (false alarms).
 
 Reproduce:
 
