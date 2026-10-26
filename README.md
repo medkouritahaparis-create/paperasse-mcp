@@ -2,16 +2,24 @@
 
 An open-source [MCP](https://modelcontextprotocol.io) server that lets AI assistants answer questions about French administrative procedures **from official sources only**, with a citable link and last update date for every answer.
 
-> **Status:** early development. The XML ingestion works; search is still a placeholder.
+> **Status:** early development. Ingestion and keyword search (SQLite FTS5) work; evals are next.
 
 ## Quick start
 
 ```bash
 uv sync
 uv run python -m paperasse.ingest   # download the official feed and build data/fiches.jsonl
+uv run python -m paperasse.store    # build the search index data/paperasse.db
 uv run mcp dev main.py              # inspect the tools in the MCP Inspector
 uv run pytest
 ```
+
+## Tools
+
+| Tool | What it does |
+|---|---|
+| `search_fiche(query, audience="particuliers", limit=5)` | Best matching service-public.fr fiches: id, title, summary, official URL, last update date |
+| `get_fiche(id, offset=0)` | Full official text of a fiche, with URL, update date, online services and legal sources; long fiches come in pages |
 
 ## Data and licence
 

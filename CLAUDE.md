@@ -13,7 +13,8 @@ Owner: Taha Medkouri. Personal side project, built on personal time and equipmen
 ## Current status
 - Session 1: hello-world MCP server with a fake `search_fiche` tool (`main.py`).
 - Session 2 (2026-10-26): roadmap step 1 done. `paperasse/ingest.py` downloads the feed (schema 3.5) and parses all 3,004 fiches into `data/fiches.jsonl`, with tests in `tests/test_ingest.py`.
-- Next step: roadmap step 2, the SQLite FTS5 index and real `search_fiche` / `get_fiche`.
+- Session 2 (cont.): roadmap step 2 done. `paperasse/store.py` builds `data/paperasse.db` (SQLite FTS5, BM25), and `main.py` serves real `search_fiche` and paged `get_fiche`. Tests: `tests/test_store.py`, `tests/test_server.py`.
+- Next step: roadmap step 3, testing with real questions in Claude Code / Claude Desktop. Known weak queries are listed in `docs/decisions.md`.
 
 ## Stack
 - Python 3.11+, managed with `uv`
@@ -27,6 +28,7 @@ Owner: Taha Medkouri. Personal side project, built on personal time and equipmen
 - Inspect / test tools by hand: `uv run mcp dev main.py`
 - Tests: `uv run pytest`
 - Download feed + build `data/fiches.jsonl`: `uv run python -m paperasse.ingest` (add `--no-download` to reparse `data/raw/` only)
+- Build search index `data/paperasse.db` from `data/fiches.jsonl`: `uv run python -m paperasse.store` (the server needs it)
 
 ## Target structure
 ```
