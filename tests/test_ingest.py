@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from paperasse.ingest import iter_fiches, parse_fiche
+from paperasse.ingest import iter_fiches, parse_fiche, strip_links
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -81,3 +81,48 @@ def test_missing_date_is_an_error(tmp_path):
     bad.write_text('<Publication ID="F1"><Audience>Particuliers</Audience></Publication>')
     with pytest.raises(ValueError, match="no update date"):
         parse_fiche(bad)
+
+
+# --- Repeated blocks, titles and links (fixture shaped like F827) ---
+
+POINTER = "[Paperasse : identique à « En savoir plus si vous avez oublié de déclarer » plus haut (sous « Caisse A > Déménagement »).]"
+
+
+@pytest.fixture(scope="module")
+def repeated():
+    return parse_fiche(FIXTURES / "F99998.xml").text
+
+
+def test_repeated_block_is_printed_once_then_pointed_to(repeated):
+    assert repeated.count("C'est le droit à l'erreur.") == 1
+    assert repeated.count(POINTER) == 2
+    # The first copy stays where the XML puts it, under its own title.
+    lines = repeated.splitlines()
+    assert lines.index("#### En savoir plus si vous avez oublié de déclarer") < lines.index("### Naissance")
+
+
+def test_short_repeated_paragraph_is_kept_in_each_case(repeated):
+    # Below DEDUP_MIN_CHARS a pointer would be as long as the text it replaces.
+    assert repeated.count("Signalez votre nouvelle adresse dans votre espace en ligne") == 2
+
+
+def test_link_blocks_keep_their_url_in_every_case(repeated):
+    assert repeated.count("Déclarer un changement (https://example.gouv.fr/declarer)") == 2
+
+
+def test_inline_links_keep_their_url(repeated):
+    assert "[le site des erreurs fréquentes](https://example.gouv.fr/erreurs) qui explique" in repeated
+    assert "[l'aide au logement](https://www.service-public.gouv.fr/particuliers/vosdroits/F1563)" in repeated
+    assert "[la fiche pro](https://entreprendre.service-public.gouv.fr/vosdroits/F23961)" in repeated
+    # Acronyms and glossary terms have no page of their own.
+    assert "et la CSE, ou" in repeated
+
+
+def test_table_summary_and_reference_are_rendered(repeated):
+    assert "Ce tableau présente les délais de test." in repeated
+    assert "Code de test : article 1 (https://www.legifrance.gouv.fr/test)" in repeated
+    assert "Délais de déclaration" in repeated
+
+
+def test_strip_links():
+    assert strip_links("Voir [le site](https://a.gouv.fr/x) ou Mairie (https://b.fr/y).") == "Voir le site ou Mairie."

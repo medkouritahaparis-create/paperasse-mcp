@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Hand-written fixture shaped like F827: a block repeated word for word in every case,
+     inline links, a link block and a table summary. Not a real fiche. -->
+<Publication xmlns:dc="http://purl.org/dc/elements/1.1/" ID="F99998" type="Fiche d'information conditionnée" spUrl="https://www.service-public.gouv.fr/particuliers/vosdroits/F99998">
+  <dc:title>Signaler un changement de test</dc:title>
+  <dc:description>Comment signaler un changement.</dc:description>
+  <dc:date>modified 2026-09-11</dc:date>
+  <Audience>Particuliers</Audience>
+  <Introduction><Texte><Paragraphe>Voir aussi <LienInterne LienPublication="F1563" type="Fiche Question-réponse conditionnée" audience="Particuliers">l'aide au logement</LienInterne> et la <LienInterne LienPublication="R51167" type="Acronyme" audience="Particuliers">CSE</LienInterne>, ou <LienInterne LienPublication="F23961" type="Fiche d'information" audience="Professionnels">la fiche pro</LienInterne>.</Paragraphe></Texte></Introduction>
+  <ListeSituations affichage="onglet">
+    <Situation><Titre>Caisse A</Titre>
+      <Texte><BlocCas affichage="onglet">
+        <Cas><Titre>Déménagement</Titre>
+          <Paragraphe>Signalez votre nouvelle adresse dans votre espace en ligne, rubrique « Mes coordonnées ».</Paragraphe>
+          <ServiceEnLigne ID="R1" URL="https://example.gouv.fr/declarer" type="Téléservice"><Titre>Déclarer un changement</Titre><Source ID="R2">Caisse de test</Source></ServiceEnLigne>
+          <Complement><Titre>En savoir plus si vous avez oublié de déclarer</Titre><Paragraphe>La caisse reconnaît qu'il est possible de se tromper, de bonne foi, dans ses déclarations. C'est le droit à l'erreur.</Paragraphe><ASavoir><Titre>À savoir</Titre><Paragraphe>Consultez <LienExterne URL="https://example.gouv.fr/erreurs">le site des erreurs fréquentes</LienExterne> qui explique comment les corriger.</Paragraphe></ASavoir></Complement>
+        </Cas>
+        <Cas><Titre>Naissance</Titre>
+          <Paragraphe>Signalez votre nouvelle adresse dans votre espace en ligne, rubrique « Mes coordonnées ».</Paragraphe>
+          <ServiceEnLigne ID="R1" URL="https://example.gouv.fr/declarer" type="Téléservice"><Titre>Déclarer un changement</Titre><Source ID="R2">Caisse de test</Source></ServiceEnLigne>
+          <Complement><Titre>En savoir plus si vous avez oublié de déclarer</Titre><Paragraphe>La caisse reconnaît qu'il est possible de se tromper, de bonne foi, dans ses déclarations. C'est le droit à l'erreur.</Paragraphe><ASavoir><Titre>À savoir</Titre><Paragraphe>Consultez <LienExterne URL="https://example.gouv.fr/erreurs">le site des erreurs fréquentes</LienExterne> qui explique comment les corriger.</Paragraphe></ASavoir></Complement>
+        </Cas>
+      </BlocCas></Texte>
+    </Situation>
+    <Situation><Titre>Caisse B</Titre>
+      <Texte>
+        <Tableau><TitreRiche><Paragraphe>Délais</Paragraphe></TitreRiche><Resume><Paragraphe>Ce tableau présente les délais de test.</Paragraphe></Resume><Rangée type="header"><Cellule><Paragraphe>Cas</Paragraphe></Cellule><Cellule><Paragraphe>Délai</Paragraphe></Cellule></Rangée><Rangée type="normal"><Cellule><Paragraphe>Tous</Paragraphe></Cellule><Cellule><Paragraphe>1 mois</Paragraphe></Cellule></Rangée></Tableau>
+        <Complement><Titre>En savoir plus si vous avez oublié de déclarer</Titre><Paragraphe>La caisse reconnaît qu'il est possible de se tromper, de bonne foi, dans ses déclarations. C'est le droit à l'erreur.</Paragraphe><ASavoir><Titre>À savoir</Titre><Paragraphe>Consultez <LienExterne URL="https://example.gouv.fr/erreurs">le site des erreurs fréquentes</LienExterne> qui explique comment les corriger.</Paragraphe></ASavoir></Complement>
+        <Reference type="Texte de référence" URL="https://www.legifrance.gouv.fr/test" ID="R3"><Titre>Code de test : article 1</Titre><Complement>Délais de déclaration</Complement></Reference>
+      </Texte>
+    </Situation>
+  </ListeSituations>
+</Publication>

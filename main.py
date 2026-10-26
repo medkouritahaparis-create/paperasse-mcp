@@ -73,8 +73,10 @@ def get_fiche(id: str, offset: int = 0) -> dict[str, Any]:
     """Read the full official text of a service-public.fr fiche, by id (e.g. "F12006").
 
     Use after search_fiche, before answering. The text is the official wording, in French,
-    with Markdown headings. It often covers several cases ("### En France", "### À l'étranger"):
-    pick the one that matches the user's situation.
+    with Markdown headings and [links](url). It often covers several cases ("### En France",
+    "### À l'étranger"): pick the one that matches the user's situation. When the official text
+    repeats a block word for word in several cases, it is given once; later copies are replaced by
+    a line "[Paperasse : identique à « … » plus haut (sous « … »)]" pointing to the first copy.
 
     Returns title, url, updated_at, text, online_services (official online procedures with
     links) and sources (legal texts). Long fiches come in pages: if `next_offset` is not null,

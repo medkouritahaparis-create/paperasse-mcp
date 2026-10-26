@@ -4,7 +4,7 @@ import pytest
 
 from paperasse.ingest import parse_fiche
 from paperasse.store import FicheStore, build_index, to_fts_query
-from tests.conftest import FICHES
+from tests.conftest import FICHES, make_fiche
 
 
 def test_fts_query_drops_stopwords_and_adds_prefixes():
@@ -69,3 +69,13 @@ def test_rebuild_replaces_database(tmp_path):
 def test_missing_database_has_helpful_error(tmp_path):
     with pytest.raises(FileNotFoundError, match="paperasse.store"):
         FicheStore(tmp_path / "missing.db")
+
+
+def test_link_urls_are_not_indexed(tmp_path):
+    db = tmp_path / "links.db"
+    build_index([make_fiche("F9", "Fiche avec lien", text="Voir [le site](https://example.gouv.fr/page).")], db)
+    store = FicheStore(db)
+    assert store.search("site")[0]["id"] == "F9"
+    assert store.search("example") == []
+    # The stored text keeps the link for the client.
+    assert "(https://example.gouv.fr/page)" in store.get("F9")["text"]

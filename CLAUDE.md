@@ -15,7 +15,9 @@ Owner: Taha Medkouri. Personal side project, built on personal time and equipmen
 - Session 2 (2026-10-26): roadmap step 1 done. `paperasse/ingest.py` downloads the feed (schema 3.5) and parses all 3,004 fiches into `data/fiches.jsonl`, with tests in `tests/test_ingest.py`.
 - Session 2 (cont.): roadmap step 2 done. `paperasse/store.py` builds `data/paperasse.db` (SQLite FTS5, BM25), and `main.py` serves real `search_fiche` and paged `get_fiche`. Tests: `tests/test_store.py`, `tests/test_server.py`.
 - Session 2 (cont.): roadmap step 3 started. `.mcp.json` registers the server for Claude Code. A scripted run of 29 real questions found the right fiche in the top 3 for 22/29; see `docs/manual-test-2026-10-26.md`. Key gaps: the *Entreprendre* feed (micro-entreprise/URSSAF) isn't ingested, and long main guides rank below short Q&A fiches.
-- Next step: try it by hand in Claude Desktop, then roadmap step 4 (eval set, seeded from the 29 labelled questions).
+- Review fixes (2026-10-26), 6 steps planned: (1) repeated text, (2) low-confidence warning, (3) eval set + runner, (4) ranking against the eval, (5) *Entreprendre* feed, (6) open-source hygiene.
+  - Step 1 done: repeated blocks print once and later copies become `[Paperasse : identique à …]` pointers. Complement/Conclusion titles and inline link URLs are kept. Duplicated text went from 23.2% to 6.9%. Checks: `python -m scripts.dup_stats`, `python -m scripts.check_fidelity`.
+- Next step: review step 2, a `low_confidence` signal in `search_fiche`.
 
 ## Stack
 - Python 3.11+, managed with `uv`
@@ -31,6 +33,7 @@ Owner: Taha Medkouri. Personal side project, built on personal time and equipmen
 - Tests: `uv run pytest`
 - Download feed + build `data/fiches.jsonl`: `uv run python -m paperasse.ingest` (add `--no-download` to reparse `data/raw/` only)
 - Build search index `data/paperasse.db` from `data/fiches.jsonl`: `uv run python -m paperasse.store` (the server needs it)
+- Text quality checks (after re-ingesting): `uv run python -m scripts.dup_stats` (repeated text %), `uv run python -m scripts.check_fidelity` (every source paragraph reproduced)
 
 ## Target structure
 ```

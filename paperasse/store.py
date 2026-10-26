@@ -13,7 +13,7 @@ from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-from paperasse.ingest import DATA_DIR, Fiche
+from paperasse.ingest import DATA_DIR, Fiche, strip_links
 
 DB_PATH = DATA_DIR / "paperasse.db"
 JSONL_PATH = DATA_DIR / "fiches.jsonl"
@@ -82,7 +82,8 @@ def build_index(fiches: Iterable[Fiche | dict[str, Any]], db_path: Path = DB_PAT
             )
             conn.execute(
                 "INSERT INTO fiches_fts(rowid, title, summary, breadcrumb, text) VALUES (?,?,?,?,?)",
-                (cur.lastrowid, row["title"], row["summary"], " > ".join(row["breadcrumb"]), row["text"]),
+                # URLs would only add noise tokens ("https", "gouv"...) to the index.
+                (cur.lastrowid, row["title"], row["summary"], " > ".join(row["breadcrumb"]), strip_links(row["text"])),
             )
             count += 1
         conn.commit()

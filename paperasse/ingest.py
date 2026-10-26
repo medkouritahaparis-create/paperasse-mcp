@@ -39,11 +39,31 @@ SKIPPED_TAGS = {
 }
 # Blocks whose own <Titre> is a heading for the content below it. Heading level
 # follows nesting depth, since Situation/Cas can wrap Chapitre and vice versa.
-TITLED_BLOCKS = {"Chapitre", "SousChapitre", "Situation", "Cas"}
-# Links to online services or offices that appear inside the text.
-LINK_BLOCKS = {"ServiceEnLigne", "ServiceEnLigneAnnexe", "NoticeLiee", "OuSAdresser"}
+# Complement is a collapsible "En savoir plus si…" section on the website.
+TITLED_BLOCKS = {"Chapitre", "SousChapitre", "Situation", "Cas", "Complement", "Conclusion"}
+# Links to online services, offices or legal texts that appear inside the text.
+LINK_BLOCKS = {
+    "ServiceEnLigne", "ServiceEnLigneAnnexe", "NoticeLiee", "OuSAdresser",
+    "PourEnSavoirPlus", "Reference",
+}
 # Callouts whose <Titre> ("À noter", "Attention"...) is a label, not a heading.
 CALLOUTS = {"ANoter", "ASavoir", "Attention", "Rappel", "Exemple", "Avertissement"}
+
+# Official page of a publication, by the audience it belongs to.
+FICHE_URL_BASE = {
+    "Particuliers": "https://www.service-public.gouv.fr/particuliers/vosdroits/",
+    "Professionnels": "https://entreprendre.service-public.gouv.fr/vosdroits/",
+}
+# Inline links to these resource types have no page of their own (they 404).
+NO_PAGE_LINK_TYPES = {"Sigle", "Acronyme", "Abréviation", "Définition de glossaire"}
+
+# The source XML often repeats a whole block word for word, once per case
+# (e.g. F827 repeats its "droit à l'erreur" section in all 6 cases). Blocks of
+# these types, at least this long once rendered, are printed once; later copies
+# become a pointer to the first one. Link blocks are not merged, so each case
+# keeps its own "Title (URL)" line; only the text inside them can be.
+DEDUP_TAGS = TITLED_BLOCKS | CALLOUTS | {"BlocCas", "Liste", "Tableau", "Paragraphe"}
+DEDUP_MIN_CHARS = 200
 
 
 @dataclass
@@ -74,13 +94,41 @@ def _clean(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+def _link_url(el: ET.Element) -> str | None:
+    """URL of an inline link element, or None if it has no page to point to."""
+    if el.tag == "LienExterne":
+        return el.get("URL") or None
+    if el.tag == "LienInterne":
+        target = el.get("LienPublication") or ""
+        base = FICHE_URL_BASE.get(el.get("audience") or "Particuliers")
+        if base and target[:1] in ("F", "N", "R") and el.get("type") not in NO_PAGE_LINK_TYPES:
+            return base + target
+    return None
+
+
 def _raw_text(el: ET.Element) -> str:
     parts = [el.text or ""]
     for child in el:
         if child.tag not in SKIPPED_TAGS:
-            parts.append(_raw_text(child))
+            inner = _raw_text(child)
+            url = _link_url(child)
+            if url and inner.strip():
+                # Keep surrounding spaces outside the brackets: "[le site](url) qui".
+                lead = inner[: len(inner) - len(inner.lstrip())]
+                trail = inner[len(inner.rstrip()) :]
+                inner = f"{lead}[{_clean(inner)}]({url}){trail}"
+            parts.append(inner)
         parts.append(child.tail or "")
     return "".join(parts)
+
+
+_MD_LINK = re.compile(r"\[([^\]]*)\]\((https?://[^)\s]+)\)")
+_BARE_URL = re.compile(r" ?\(https?://[^)\s]+\)")
+
+
+def strip_links(text: str) -> str:
+    """Drop link URLs, keeping link text: for search indexing and text comparisons."""
+    return _BARE_URL.sub("", _MD_LINK.sub(r"\1", text))
 
 
 def _inline(el: ET.Element) -> str:
@@ -103,6 +151,9 @@ def _table(el: ET.Element) -> list[str]:
     caption = _title(el)
     if caption:
         lines.append(caption)
+    summary = el.find("Resume")  # accessibility summary: "Ce tableau présente…"
+    if summary is not None and _inline(summary):
+        lines.append(_inline(summary))
     rows = el.findall("Rangée")
     for i, row in enumerate(rows):
         cells = [_inline(c).replace("|", "\\|") for c in row.findall("Cellule")]
@@ -112,8 +163,55 @@ def _table(el: ET.Element) -> list[str]:
     return lines
 
 
-def _blocks(el: ET.Element, depth: int = 0, level: int = 2) -> list[str]:
-    """Render a block element to a list of text lines."""
+@dataclass
+class _Render:
+    """State shared across one fiche's rendering."""
+
+    path: list[str] = field(default_factory=list)  # titles of the enclosing headings
+    seen: dict[bytes, tuple[str, str]] = field(default_factory=dict)  # block XML -> (label, headings)
+
+
+def _xml_key(el: ET.Element) -> bytes:
+    tail, el.tail = el.tail, None
+    try:
+        return ET.tostring(el)
+    finally:
+        el.tail = tail
+
+
+def _label(el: ET.Element, lines: list[str]) -> str:
+    """Short name for a block in a repeat pointer: its title, or the start of its text."""
+    title = strip_links(_title(el))
+    if title:
+        return title
+    first = strip_links(lines[0]).lstrip("#-|0123456789. ").strip()
+    return first if len(first) <= 60 else first[:60].rsplit(" ", 1)[0] + "…"
+
+
+def _blocks(el: ET.Element, ctx: _Render, depth: int = 0, level: int = 2) -> list[str]:
+    """Render a block element to a list of text lines.
+
+    A block that repeats an earlier one word for word (same XML) is replaced by
+    a pointer to the first copy, if it is long enough to be worth it.
+    """
+    if el.tag not in DEDUP_TAGS:
+        return _render_block(el, ctx, depth, level)
+    key = _xml_key(el)
+    if key in ctx.seen:
+        label, where = ctx.seen[key]
+        lines = _render_block(el, _Render(path=list(ctx.path)), depth, level)
+        if sum(map(len, lines)) >= DEDUP_MIN_CHARS:
+            sous = f" (sous « {where} »)" if where else ""
+            return [f"[Paperasse : identique à « {label} » plus haut{sous}.]"]
+        return _render_block(el, ctx, depth, level)
+    where = " > ".join(ctx.path[-2:])  # nearest headings of the first copy
+    lines = _render_block(el, ctx, depth, level)
+    if lines:
+        ctx.seen[key] = (_label(el, lines), where)
+    return lines
+
+
+def _render_block(el: ET.Element, ctx: _Render, depth: int, level: int) -> list[str]:
     tag = el.tag
     if tag in SKIPPED_TAGS or tag in ("Titre", "TitreRiche"):
         return []
@@ -124,7 +222,7 @@ def _blocks(el: ET.Element, depth: int = 0, level: int = 2) -> list[str]:
         lines = []
         for n, item in enumerate(el.findall("Item"), start=1):
             bullet = f"{n}." if el.get("type") == "numero" else "-"
-            sub = [l for c in item for l in _blocks(c, depth + 1, level)]
+            sub = [l for c in item for l in _blocks(c, ctx, depth + 1, level)]
             if sub:
                 lines.append(f"{'  ' * depth}{bullet} {sub[0]}")
                 lines.extend(f"{'  ' * (depth + 1)}{l}" for l in sub[1:])
@@ -136,33 +234,41 @@ def _blocks(el: ET.Element, depth: int = 0, level: int = 2) -> list[str]:
         res = el.find("RessourceWeb")
         url = el.get("URL") or (res.get("URL", "") if res is not None else "")
         lines = [f"{title} ({url})" if url else title] if title else []
-        # Offices and services can carry their own text (addresses, notices, cases).
+        # Offices, services and references can carry their own text (addresses, notices, cases).
         for child in el:
-            lines.extend(_blocks(child, depth, level))
+            lines.extend(_blocks(child, ctx, depth, level))
         return lines
 
     lines: list[str] = []
+    title = ""
     if tag in TITLED_BLOCKS:
         title = _title(el)
         if title:
             lines.append(f"{'#' * min(level, 6)} {title}")
             level += 1
+            ctx.path.append(strip_links(title))
     elif tag in CALLOUTS:
         label = _title(el)
-        body = [l for c in el for l in _blocks(c, depth, level)]
+        body = [l for c in el for l in _blocks(c, ctx, depth, level)]
         if label and body:
             return [f"{label} : {body[0]}", *body[1:]]
         return body
+    # Text written directly in a block, e.g. <Reference><Complement>texte</Complement>.
+    if (el.text or "").strip():
+        lines.append(_clean(el.text))
     for child in el:
-        lines.extend(_blocks(child, depth, level))
+        lines.extend(_blocks(child, ctx, depth, level))
+    if title:
+        ctx.path.pop()
     return lines
 
 
 def _render_text(root: ET.Element) -> str:
     lines: list[str] = []
+    ctx = _Render()
     for tag in ("Introduction", "Texte", "ListeSituations", "Conclusion"):
         for el in root.findall(tag):
-            lines.extend(_blocks(el))
+            lines.extend(_blocks(el, ctx))
     # Blank line between blocks, except inside list runs.
     out: list[str] = []
     for line in lines:
