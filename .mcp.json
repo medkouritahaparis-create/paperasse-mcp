@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "paperasse": {
+      "command": "uv",
+      "args": ["run", "main.py"]
+    }
+  }
+}

@@ -14,7 +14,8 @@ Owner: Taha Medkouri. Personal side project, built on personal time and equipmen
 - Session 1: hello-world MCP server with a fake `search_fiche` tool (`main.py`).
 - Session 2 (2026-10-26): roadmap step 1 done. `paperasse/ingest.py` downloads the feed (schema 3.5) and parses all 3,004 fiches into `data/fiches.jsonl`, with tests in `tests/test_ingest.py`.
 - Session 2 (cont.): roadmap step 2 done. `paperasse/store.py` builds `data/paperasse.db` (SQLite FTS5, BM25), and `main.py` serves real `search_fiche` and paged `get_fiche`. Tests: `tests/test_store.py`, `tests/test_server.py`.
-- Next step: roadmap step 3, testing with real questions in Claude Code / Claude Desktop. Known weak queries are listed in `docs/decisions.md`.
+- Session 2 (cont.): roadmap step 3 started. `.mcp.json` registers the server for Claude Code. A scripted run of 29 real questions found the right fiche in the top 3 for 22/29; see `docs/manual-test-2026-10-26.md`. Key gaps: the *Entreprendre* feed (micro-entreprise/URSSAF) isn't ingested, and long main guides rank below short Q&A fiches.
+- Next step: try it by hand in Claude Desktop, then roadmap step 4 (eval set, seeded from the 29 labelled questions).
 
 ## Stack
 - Python 3.11+, managed with `uv`
@@ -26,6 +27,7 @@ Owner: Taha Medkouri. Personal side project, built on personal time and equipmen
 - Install deps: `uv sync`
 - Run server: `uv run main.py`
 - Inspect / test tools by hand: `uv run mcp dev main.py`
+- Use in Claude Code: `.mcp.json` at the repo root registers the `paperasse` server (needs `data/paperasse.db`)
 - Tests: `uv run pytest`
 - Download feed + build `data/fiches.jsonl`: `uv run python -m paperasse.ingest` (add `--no-download` to reparse `data/raw/` only)
 - Build search index `data/paperasse.db` from `data/fiches.jsonl`: `uv run python -m paperasse.store` (the server needs it)
