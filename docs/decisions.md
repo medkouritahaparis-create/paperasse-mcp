@@ -95,3 +95,41 @@ Each entry: context, options, decision, why.
   - Long main guides are outranked by short Q&A fiches (F2213 naturalisation at rank 9, F19778 RSA at rank 9, F2882 prime d'activité at rank 6).
   - Sentence queries carry many words that aren't in titles. That also makes `low_confidence` fire on correct answers, so the 0.5 threshold, chosen on keyword queries, should be re-checked against this set.
   - Some misses are vocabulary gaps ("garant gratuit" vs "Garantie Visale", "enceinte" vs "naissance"), which keyword search can't bridge without synonyms or embeddings. They're out of scope for step 4.
+
+## 2026-10-26 — Ranking: length prior (review step 4)
+
+- **Context:** the baseline eval (search code 4e93a4c) gave all 44% top-1 / 75% top-3 / MRR 0.59. Long main guides lost to short Q&A fiches with similar titles (F2213 naturalisation and F19778 RSA at rank 9, F2882 prime d'activité at rank 6).
+- **Method:** each option was tried alone against the same baseline, on the 48 answerable eval questions, by swapping `FicheStore.search` in a scratch harness that uses the eval's own `run_one`/`score` (it reproduced the baseline exactly before any change). A change is kept only if it beats the baseline by more than noise: one question is about 2 points. No embeddings.
+- **Results** (top-1 / top-3 out of 48, MRR@10; baseline 21 / 36 / 0.593):
+
+  | Option | Top-1 | Top-3 | MRR | Verdict |
+  |---|---|---|---|---|
+  | A. `text` weight 0.5 (from 1) | 22 | 37 | 0.611 | noise, rejected |
+  | A. `text` weight 0.25 | 22 | 36 | 0.604 | noise, rejected |
+  | A. `text` weight 0.1 | 20 | 32 | 0.571 | worse |
+  | A. `text` weight 0 (title/summary/breadcrumb only) | 17 | 28 | 0.478 | worse |
+  | B. `title` weight 20 or 40 (from 10) | 22 | 36 | 0.599 | noise, rejected |
+  | B. `summary` weight 1 (from 4) | 19 | 34 | 0.558 | worse |
+  | B. `summary` weight 8 | 23 | 36 | 0.614 | noise, rejected |
+  | C. boost "Fiche d'information" type ×1.2 | 22 | 30 | 0.572 | worse (helps sentences, hurts keywords) |
+  | C. same, ×1.5 | 22 | 27 | 0.541 | worse |
+  | D. exclude "Recherche guidée" hubs | 21 | 35 | 0.583 | worse |
+  | F. rank on title + summary first, then full text | 16 | 28 | 0.481 | worse |
+  | G. re-rank top 50 by `match`, BM25 as tie-break | 21 | 34 | 0.588 | worse |
+  | H. BM25 / best BM25 + 0.5 × `match` | 25 | 38 | 0.666 | better, but beaten by E |
+  | **E. length prior: bm25 × (1 + a·ln(1 + text length)), a = 0.075** | **30** | **38** | **0.712** | **kept** |
+
+- **Length prior sensitivity** (re-rank the top 50 BM25 hits): a = 0.01 → 24/36/0.633; 0.02 → 28/38/0.681; 0.03 → 28/39/0.687; **0.05, 0.075, 0.1 → 30/38/0.71** (a plateau); 0.15 → 29/38/0.699. A pool of 20, 50 or 100 gives the same numbers. a = 0.075 is the middle of the plateau, so the result doesn't rest on one exact value.
+- **Tried on top of E, all rejected as noise:** `text` weight 0.5 (29/40/0.708: −1 top-1, +2 top-3); `summary` weight 8 (29/38/0.703); + 0.5 × `match` (30/39/0.718, but one fewer no-match question flagged).
+- **Decision:** keep E alone. `bm25()` stays the first-stage ranker. Its top 50 (`RERANK_POOL`) are re-ranked by `bm25 × (1 + 0.075 · ln(1 + text_len))`, with `text_len` stored at build time. Why it works: FTS5's BM25 length normalisation (b = 0.75, fixed in FTS5) penalises long documents, while on service-public.fr the long fiche is usually the main guide and the short ones are narrow Q&A spin-offs. The prior is mild: a 40k-character guide gets about ×1.8 against ×1.5 for a 1k-character Q&A. Empty "Recherche guidée" hubs get no boost.
+- **Result** (all / keywords / sentences): top-1 44% → **62%** / 50% → **77%** / 36% → **45%**; top-3 75% → **79%** / 85% → 85% / 64% → **73%**; MRR 0.59 → **0.71**. F2213 naturalisation, F19778 RSA and F2882 prime d'activité are now at rank 1.
+- **`low_confidence` threshold re-checked on the new ranking:**
+
+  | Threshold | No-match flagged | Useful warnings | False alarms |
+  |---|---|---|---|
+  | 0.40 | 7/9 | 9/18 | 6/30 |
+  | **0.50** | **8/9** | **10/18** | **7/30** |
+  | 0.55 | 9/9 | 11/18 | 7/30 |
+  | 0.60 | 9/9 | 11/18 | 9/30 |
+
+  0.55 looks slightly better, but the whole gain is one question ("cotisations sociales auto-entrepreneur", match 0.54), which review step 5 makes answerable. Changing the threshold for one data point would be overfitting, so it **stays at 0.5**, to be re-checked after step 5.

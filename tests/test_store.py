@@ -106,3 +106,20 @@ def test_search_results_carry_match(store):
     assert hits[0]["match"] == 1.0
     # Found only through body text ("se déplacer"): weak match.
     assert store.search("déplacer")[0]["match"] == 0.0
+
+
+def test_length_prior_lifts_main_guide_above_short_qa(tmp_path):
+    # Without the prior, BM25 length normalisation puts the short Q&A first.
+    guide = make_fiche("F10", "Naturalisation par décret", "Conditions et démarche.",
+                       "\n\n".join(f"## Étape {i}\n\n" + "Texte officiel de la démarche. " * 60 for i in range(10)))
+    qa = make_fiche("F11", "Naturalisation : quels justificatifs ?", "Liste des justificatifs.", "Un court texte.")
+    db = tmp_path / "prior.db"
+    build_index([guide, qa], db)
+    store = FicheStore(db)
+    assert [h["id"] for h in store.search("naturalisation")] == ["F10", "F11"]
+
+
+def test_search_and_get_do_not_leak_ranking_internals(store):
+    hit = store.search("aide logement étudiant")[0]
+    assert "bm25" not in hit and "text_len" not in hit
+    assert "text_len" not in store.get("F1")

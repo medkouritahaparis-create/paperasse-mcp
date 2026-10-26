@@ -24,6 +24,14 @@ JSONL_PATH = DATA_DIR / "fiches.jsonl"
 FTS_COLUMNS = ("title", "summary", "breadcrumb", "text")
 BM25_WEIGHTS = (10.0, 4.0, 2.0, 1.0)
 
+# BM25 normalises for document length, which lets short Q&A fiches outrank the
+# main guide on a topic (e.g. "Naturalisation : quels justificatifs… ?" above
+# "Naturalisation française par décret"). The top RERANK_POOL BM25 hits are
+# re-ranked by bm25 * (1 + LENGTH_PRIOR * ln(1 + text length)), which gives
+# longer, more complete fiches a mild boost. Tuned on the eval: see docs/decisions.md.
+LENGTH_PRIOR = 0.075
+RERANK_POOL = 50
+
 # Very common French words that only add noise to an OR query.
 STOPWORDS = frozenset("""
 a à au aux avec ce ces cet cette comme dans de des du elle en est et être il ils
@@ -52,7 +60,8 @@ CREATE TABLE fiches (
     theme TEXT,
     breadcrumb TEXT NOT NULL,       -- JSON list
     online_services TEXT NOT NULL,  -- JSON list of {{id, title, url}}
-    sources TEXT NOT NULL           -- JSON list of URLs
+    sources TEXT NOT NULL,          -- JSON list of URLs
+    text_len INTEGER NOT NULL       -- characters in text, for the length prior
 );
 CREATE VIRTUAL TABLE fiches_fts USING fts5(
     {", ".join(FTS_COLUMNS)},
@@ -78,13 +87,14 @@ def build_index(fiches: Iterable[Fiche | dict[str, Any]], db_path: Path = DB_PAT
         for f in fiches:
             row = asdict(f) if is_dataclass(f) else f
             cur = conn.execute(
-                "INSERT INTO fiches VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO fiches VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     row["id"], row["title"], row["type"], row["audience"], row["summary"],
                     row["text"], row["url"], row["updated_at"], row["important_update_at"],
                     row["theme"], json.dumps(row["breadcrumb"], ensure_ascii=False),
                     json.dumps(row["online_services"], ensure_ascii=False),
                     json.dumps(row["sources"], ensure_ascii=False),
+                    len(row["text"]),
                 ),
             )
             conn.execute(
@@ -187,17 +197,21 @@ class FicheStore:
         weights = ", ".join(str(w) for w in BM25_WEIGHTS)
         rows = self.conn.execute(
             f"""
-            SELECT f.id, f.title, f.summary, f.url, f.updated_at, f.theme
+            SELECT f.id, f.title, f.summary, f.url, f.updated_at, f.theme,
+                   bm25(fiches_fts, {weights}) AS bm25, f.text_len
             FROM fiches_fts
             JOIN fiches f ON f.rowid = fiches_fts.rowid
             WHERE fiches_fts MATCH ?
-            ORDER BY bm25(fiches_fts, {weights})
+            ORDER BY bm25
             LIMIT ?
             """,
-            (fts, limit),
+            (fts, max(limit, RERANK_POOL)),
         ).fetchall()
-        results = [dict(r) for r in rows]
+        # bm25() is negative, lower is better; the prior makes longer fiches more negative.
+        rows = sorted(rows, key=lambda r: r["bm25"] * (1 + LENGTH_PRIOR * math.log1p(r["text_len"])))
+        results = [dict(r) for r in rows[:limit]]
         for r in results:
+            del r["bm25"], r["text_len"]
             r["match"] = round(self.match(query, r["title"], r["summary"]), 2)
         return results
 
@@ -207,6 +221,7 @@ class FicheStore:
         if row is None:
             return None
         fiche = dict(row)
+        del fiche["text_len"]
         for key in ("breadcrumb", "online_services", "sources"):
             fiche[key] = json.loads(fiche[key])
         return fiche
