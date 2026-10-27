@@ -1,67 +1,85 @@
-{"id": "q01", "question": "APL étudiant", "expected": ["F1563"], "category": "caf", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q02", "question": "Comment demander l'APL quand on est étudiant ?", "expected": ["F1563"], "category": "caf", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q03", "question": "prime d'activité conditions", "expected": ["F2882"], "category": "caf", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q04", "question": "RSA montant", "expected": ["F19778"], "category": "caf", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q05", "question": "allocations familiales deuxième enfant", "expected": ["F13213"], "category": "caf", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q06", "question": "déclarer un changement de situation à la CAF", "expected": ["F827"], "category": "caf", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q07", "question": "déclaration de revenus en ligne", "expected": ["F358"], "category": "impots", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q08", "question": "payer impôt sur le revenu en plusieurs fois", "expected": ["F3124"], "category": "impots", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q09", "question": "taxe d'habitation résidence secondaire", "expected": ["F42"], "category": "impots", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q10", "question": "avis d'imposition contester", "expected": ["F110"], "category": "impots", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q11", "question": "prélèvement à la source changer de taux", "expected": ["F35894"], "category": "impots", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q12", "question": "renouvellement titre de séjour étudiant", "expected": ["F2231"], "category": "sejour", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q13", "question": "changement de statut étudiant salarié", "expected": ["F2229"], "category": "sejour", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q14", "question": "naturalisation française conditions", "expected": ["F2213"], "category": "sejour", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q15", "question": "récépissé titre de séjour", "expected": ["F15763"], "category": "sejour", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q16", "question": "regroupement familial", "expected": ["F11166"], "category": "sejour", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q17", "question": "carte vitale perdue", "expected": ["F265"], "category": "sante", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q18", "question": "complémentaire santé solidaire", "expected": ["F10027"], "category": "sante", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q19", "question": "arrêt maladie indemnités journalières", "expected": ["F3053"], "category": "sante", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q20", "question": "changer d'adresse carte grise", "expected": ["F12118"], "category": "transport", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q21", "question": "demande de logement social", "expected": ["F35683"], "category": "logement", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q22", "question": "inscription listes électorales", "expected": ["F1367"], "category": "papiers", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q23", "question": "passeport délai", "expected": ["F34757"], "category": "papiers", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q24", "question": "perte de papiers d'identité", "expected": ["F31421"], "category": "papiers", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q25", "question": "chômage démission", "expected": ["F34991", "F89"], "category": "travail", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q26", "question": "rupture conventionnelle indemnité", "expected": ["F31539"], "category": "travail", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q27", "question": "micro-entrepreneur déclaration chiffre d'affaires URSSAF", "expected": ["F23257", "F37353"], "category": "freelance", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q28", "question": "créer une micro-entreprise", "expected": ["F23961", "F36746"], "category": "freelance", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q29", "question": "cotisations sociales auto-entrepreneur", "expected": ["F36232", "F37353"], "category": "freelance", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q30", "question": "Mon propriétaire ne me rend pas ma caution, il a combien de temps pour me la rendre ?", "expected": ["F31269"], "category": "logement", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q31", "question": "Je veux quitter mon appartement, combien de temps de préavis je dois donner ?", "expected": ["F1168", "F32360"], "category": "logement", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q32", "question": "Comment avoir un garant gratuit pour louer un appartement ?", "expected": ["F33453"], "category": "logement", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q33", "question": "Comment savoir combien de points il me reste sur mon permis ?", "expected": ["F17970"], "category": "transport", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q34", "question": "J'ai un permis de conduire marocain, comment l'échanger contre un permis français ?", "expected": ["F1460"], "category": "transport", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q35", "question": "J'ai reçu une amende parce que je n'ai pas payé le stationnement, que faire ?", "expected": ["F34440"], "category": "transport", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q36", "question": "J'achète une voiture d'occasion, comment faire la carte grise à mon nom ?", "expected": ["F1050"], "category": "transport", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q37", "question": "Est-ce que ma voiture a besoin d'une vignette Crit'Air ?", "expected": ["F33371"], "category": "transport", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q38", "question": "Est-ce que mes dons à une association donnent droit à une réduction d'impôt ?", "expected": ["F426"], "category": "impots", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q39", "question": "Je suis étudiant, mes parents peuvent-ils me rattacher à leur déclaration d'impôts ?", "expected": ["F3085"], "category": "impots", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q40", "question": "Quelle carte de séjour pour travailler en France comme salarié ?", "expected": ["F15898"], "category": "sejour", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q41", "question": "Est-ce que je peux voyager en Europe avec mon titre de séjour français ?", "expected": ["F1765"], "category": "sejour", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q42", "question": "Comment déclarer mon médecin traitant ?", "expected": ["F163"], "category": "sante", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q43", "question": "Je suis tombé malade en vacances en Espagne, comment me faire rembourser ?", "expected": ["F213"], "category": "sante", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q44", "question": "Je suis enceinte, quelle aide de la CAF pour la naissance ?", "expected": ["F2550", "F2552", "F13218"], "category": "caf", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q45", "question": "Combien on touche pour l'allocation de rentrée scolaire ?", "expected": ["F1878"], "category": "caf", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q46", "question": "Combien de jours de congés payés a-t-on par an ?", "expected": ["F2258"], "category": "travail", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q47", "question": "Mon employeur ne me paie pas mes heures supplémentaires", "expected": ["F2391"], "category": "travail", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q48", "question": "Je viens de perdre mon emploi, comment m'inscrire à France Travail ?", "expected": ["F1636"], "category": "travail", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q49", "question": "Ma carte d'identité est périmée, comment la refaire ?", "expected": ["F21089"], "category": "papiers", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q50", "question": "Comment se pacser ?", "expected": ["F1618"], "category": "famille", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q51", "question": "Je n'ai pas les moyens de payer un avocat, est-ce qu'il y a une aide ?", "expected": ["F18074"], "category": "justice", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q52", "question": "recette de crêpes bretonnes", "expected": [], "category": "off_topic", "style": "keywords", "origin": "added-2026-10-26"}
-{"id": "q53", "question": "résultats du match PSG", "expected": [], "category": "off_topic", "style": "keywords", "origin": "added-2026-10-26"}
-{"id": "q54", "question": "acheter un iPhone pas cher", "expected": [], "category": "off_topic", "style": "sentence", "origin": "added-2026-10-26"}
-{"id": "q55", "question": "météo demain Marseille", "expected": [], "category": "off_topic", "style": "keywords", "origin": "added-2026-10-26"}
-{"id": "q56", "question": "I lost my residence permit what do I do", "expected": [], "category": "english", "style": "sentence", "origin": "added-2026-10-26", "note": "The server only searches French text; clients are told to translate first, so the raw English query should be flagged low_confidence."}
-{"id": "q57", "question": "how do I renew my visa in France", "expected": [], "category": "english", "style": "sentence", "origin": "added-2026-10-26", "note": "The server only searches French text; clients are told to translate first, so the raw English query should be flagged low_confidence."}
-{"id": "q58", "question": "micro-entrepreneur franchise TVA", "expected": ["F21746"], "category": "freelance", "style": "keywords", "origin": "review-step-5"}
-{"id": "q59", "question": "auto-entrepreneur CFE", "expected": ["F23999"], "category": "freelance", "style": "keywords", "origin": "review-step-5"}
-{"id": "q60", "question": "numéro Siret", "expected": ["F32135"], "category": "freelance", "style": "keywords", "origin": "review-step-5"}
-{"id": "q61", "question": "plafond chiffre d'affaires micro-entreprise", "expected": ["F32353"], "category": "freelance", "style": "keywords", "origin": "review-step-5"}
-{"id": "q62", "question": "impôt micro-entrepreneur versement libératoire", "expected": ["F36244", "F23267"], "category": "freelance", "style": "keywords", "origin": "review-step-5"}
-{"id": "q63", "question": "Je suis étudiant, est-ce que je peux être auto-entrepreneur ?", "expected": ["F36612"], "category": "freelance", "style": "sentence", "origin": "review-step-5"}
-{"id": "q64", "question": "Quelles mentions mettre sur une facture ?", "expected": ["F31808"], "category": "freelance", "style": "sentence", "origin": "review-step-5"}
-{"id": "q65", "question": "Comment fermer ma micro-entreprise ?", "expected": ["F20678"], "category": "freelance", "style": "sentence", "origin": "review-step-5"}
-{"id": "q66", "question": "Peut-on toucher le chômage en créant son entreprise ?", "expected": ["F36613", "F15252"], "category": "freelance", "style": "sentence", "origin": "review-step-5"}
-{"id": "q67", "question": "Quel statut choisir pour créer mon entreprise ?", "expected": ["F23844"], "category": "freelance", "style": "sentence", "origin": "review-step-5"}
+{"id": "q01", "question": "APL étudiant", "expected": ["F1563"], "category": "caf", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q02", "question": "Comment demander l'APL quand on est étudiant ?", "expected": ["F1563"], "category": "caf", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q03", "question": "prime d'activité conditions", "expected": ["F2882"], "category": "caf", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "test"}
+{"id": "q04", "question": "RSA montant", "expected": ["F19778"], "category": "caf", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q05", "question": "allocations familiales deuxième enfant", "expected": ["F13213"], "category": "caf", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q06", "question": "déclarer un changement de situation à la CAF", "expected": ["F827"], "category": "caf", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "test"}
+{"id": "q07", "question": "déclaration de revenus en ligne", "expected": ["F358"], "category": "impots", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q08", "question": "payer impôt sur le revenu en plusieurs fois", "expected": ["F3124"], "category": "impots", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "test"}
+{"id": "q09", "question": "taxe d'habitation résidence secondaire", "expected": ["F42"], "category": "impots", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q10", "question": "avis d'imposition contester", "expected": ["F110"], "category": "impots", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q11", "question": "prélèvement à la source changer de taux", "expected": ["F35894"], "category": "impots", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "test"}
+{"id": "q12", "question": "renouvellement titre de séjour étudiant", "expected": ["F2231"], "category": "sejour", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q13", "question": "changement de statut étudiant salarié", "expected": ["F2229"], "category": "sejour", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q14", "question": "naturalisation française conditions", "expected": ["F2213"], "category": "sejour", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "test"}
+{"id": "q15", "question": "récépissé titre de séjour", "expected": ["F15763"], "category": "sejour", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q16", "question": "regroupement familial", "expected": ["F11166"], "category": "sejour", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q17", "question": "carte vitale perdue", "expected": ["F265"], "category": "sante", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q18", "question": "complémentaire santé solidaire", "expected": ["F10027"], "category": "sante", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q19", "question": "arrêt maladie indemnités journalières", "expected": ["F3053"], "category": "sante", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "test"}
+{"id": "q20", "question": "changer d'adresse carte grise", "expected": ["F12118"], "category": "transport", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q21", "question": "demande de logement social", "expected": ["F35683"], "category": "logement", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q22", "question": "inscription listes électorales", "expected": ["F1367"], "category": "papiers", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q23", "question": "passeport délai", "expected": ["F34757"], "category": "papiers", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q24", "question": "perte de papiers d'identité", "expected": ["F31421"], "category": "papiers", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "test"}
+{"id": "q25", "question": "chômage démission", "expected": ["F34991", "F89"], "category": "travail", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q26", "question": "rupture conventionnelle indemnité", "expected": ["F31539"], "category": "travail", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "test"}
+{"id": "q27", "question": "micro-entrepreneur déclaration chiffre d'affaires URSSAF", "expected": ["F23257", "F37353"], "category": "freelance", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q28", "question": "créer une micro-entreprise", "expected": ["F23961", "F36746"], "category": "freelance", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "dev"}
+{"id": "q29", "question": "cotisations sociales auto-entrepreneur", "expected": ["F36232", "F37353"], "category": "freelance", "style": "keywords", "origin": "manual-test-2026-10-26", "split": "test"}
+{"id": "q30", "question": "Mon propriétaire ne me rend pas ma caution, il a combien de temps pour me la rendre ?", "expected": ["F31269"], "category": "logement", "style": "sentence", "origin": "added-2026-10-26", "split": "test"}
+{"id": "q31", "question": "Je veux quitter mon appartement, combien de temps de préavis je dois donner ?", "expected": ["F1168", "F32360"], "category": "logement", "style": "sentence", "origin": "added-2026-10-26", "split": "dev"}
+{"id": "q32", "question": "Comment avoir un garant gratuit pour louer un appartement ?", "expected": ["F33453"], "category": "logement", "style": "sentence", "origin": "added-2026-10-26", "split": "dev"}
+{"id": "q33", "question": "Comment savoir combien de points il me reste sur mon permis ?", "expected": ["F17970"], "category": "transport", "style": "sentence", "origin": "added-2026-10-26", "split": "test"}
+{"id": "q34", "question": "J'ai un permis de conduire marocain, comment l'échanger contre un permis français ?", "expected": ["F1460"], "category": "transport", "style": "sentence", "origin": "added-2026-10-26", "split": "dev"}
+{"id": "q35", "question": "J'ai reçu une amende parce que je n'ai pas payé le stationnement, que faire ?", "expected": ["F34440"], "category": "transport", "style": "sentence", "origin": "added-2026-10-26", "split": "dev"}
+{"id": "q36", "question": "J'achète une voiture d'occasion, comment faire la carte grise à mon nom ?", "expected": ["F1050"], "category": "transport", "style": "sentence", "origin": "added-2026-10-26", "split": "test"}
+{"id": "q37", "question": "Est-ce que ma voiture a besoin d'une vignette Crit'Air ?", "expected": ["F33371"], "category": "transport", "style": "sentence", "origin": "added-2026-10-26", "split": "dev"}
+{"id": "q38", "question": "Est-ce que mes dons à une association donnent droit à une réduction d'impôt ?", "expected": ["F426"], "category": "impots", "style": "sentence", "origin": "added-2026-10-26", "split": "dev"}
+{"id": "q39", "question": "Je suis étudiant, mes parents peuvent-ils me rattacher à leur déclaration d'impôts ?", "expected": ["F3085"], "category": "impots", "style": "sentence", "origin": "added-2026-10-26", "split": "dev"}
+{"id": "q40", "question": "Quelle carte de séjour pour travailler en France comme salarié ?", "expected": ["F15898"], "category": "sejour", "style": "sentence", "origin": "added-2026-10-26", "split": "test"}
+{"id": "q41", "question": "Est-ce que je peux voyager en Europe avec mon titre de séjour français ?", "expected": ["F1765"], "category": "sejour", "style": "sentence", "origin": "added-2026-10-26", "split": "dev"}
+{"id": "q42", "question": "Comment déclarer mon médecin traitant ?", "expected": ["F163"], "category": "sante", "style": "sentence", "origin": "added-2026-10-26", "split": "dev"}
+{"id": "q43", "question": "Je suis tombé malade en vacances en Espagne, comment me faire rembourser ?", "expected": ["F213"], "category": "sante", "style": "sentence", "origin": "added-2026-10-26", "split": "dev"}
+{"id": "q44", "question": "Je suis enceinte, quelle aide de la CAF pour la naissance ?", "expected": ["F2550", "F2552", "F13218"], "category": "caf", "style": "sentence", "origin": "added-2026-10-26", "split": "dev"}
+{"id": "q45", "question": "Combien on touche pour l'allocation de rentrée scolaire ?", "expected": ["F1878"], "category": "caf", "style": "sentence", "origin": "added-2026-10-26", "split": "dev"}
+{"id": "q46", "question": "Combien de jours de congés payés a-t-on par an ?", "expected": ["F2258"], "category": "travail", "style": "sentence", "origin": "added-2026-10-26", "split": "dev"}
+{"id": "q47", "question": "Mon employeur ne me paie pas mes heures supplémentaires", "expected": ["F2391"], "category": "travail", "style": "sentence", "origin": "added-2026-10-26", "split": "dev"}
+{"id": "q48", "question": "Je viens de perdre mon emploi, comment m'inscrire à France Travail ?", "expected": ["F1636"], "category": "travail", "style": "sentence", "origin": "added-2026-10-26", "split": "test"}
+{"id": "q49", "question": "Ma carte d'identité est périmée, comment la refaire ?", "expected": ["F21089"], "category": "papiers", "style": "sentence", "origin": "added-2026-10-26", "split": "dev"}
+{"id": "q50", "question": "Comment se pacser ?", "expected": ["F1618"], "category": "famille", "style": "sentence", "origin": "added-2026-10-26", "split": "test"}
+{"id": "q51", "question": "Je n'ai pas les moyens de payer un avocat, est-ce qu'il y a une aide ?", "expected": ["F18074"], "category": "justice", "style": "sentence", "origin": "added-2026-10-26", "split": "dev"}
+{"id": "q52", "question": "recette de crêpes bretonnes", "expected": [], "category": "off_topic", "style": "keywords", "origin": "added-2026-10-26", "split": "test"}
+{"id": "q53", "question": "résultats du match PSG", "expected": [], "category": "off_topic", "style": "keywords", "origin": "added-2026-10-26", "split": "dev"}
+{"id": "q54", "question": "acheter un iPhone pas cher", "expected": [], "category": "off_topic", "style": "sentence", "origin": "added-2026-10-26", "split": "test"}
+{"id": "q55", "question": "météo demain Marseille", "expected": [], "category": "off_topic", "style": "keywords", "origin": "added-2026-10-26", "split": "dev"}
+{"id": "q56", "question": "I lost my residence permit what do I do", "expected": [], "category": "english", "style": "sentence", "origin": "added-2026-10-26", "note": "The server only searches French text; clients are told to translate first, so the raw English query should be flagged low_confidence.", "split": "dev"}
+{"id": "q57", "question": "how do I renew my visa in France", "expected": [], "category": "english", "style": "sentence", "origin": "added-2026-10-26", "note": "The server only searches French text; clients are told to translate first, so the raw English query should be flagged low_confidence.", "split": "dev"}
+{"id": "q58", "question": "micro-entrepreneur franchise TVA", "expected": ["F21746"], "category": "freelance", "style": "keywords", "origin": "review-step-5", "split": "dev"}
+{"id": "q59", "question": "auto-entrepreneur CFE", "expected": ["F23999"], "category": "freelance", "style": "keywords", "origin": "review-step-5", "split": "dev"}
+{"id": "q60", "question": "numéro Siret", "expected": ["F32135"], "category": "freelance", "style": "keywords", "origin": "review-step-5", "split": "test"}
+{"id": "q61", "question": "plafond chiffre d'affaires micro-entreprise", "expected": ["F32353"], "category": "freelance", "style": "keywords", "origin": "review-step-5", "split": "dev"}
+{"id": "q62", "question": "impôt micro-entrepreneur versement libératoire", "expected": ["F36244", "F23267"], "category": "freelance", "style": "keywords", "origin": "review-step-5", "split": "dev"}
+{"id": "q63", "question": "Je suis étudiant, est-ce que je peux être auto-entrepreneur ?", "expected": ["F36612"], "category": "freelance", "style": "sentence", "origin": "review-step-5", "split": "test"}
+{"id": "q64", "question": "Quelles mentions mettre sur une facture ?", "expected": ["F31808"], "category": "freelance", "style": "sentence", "origin": "review-step-5", "split": "dev"}
+{"id": "q65", "question": "Comment fermer ma micro-entreprise ?", "expected": ["F20678"], "category": "freelance", "style": "sentence", "origin": "review-step-5", "split": "dev"}
+{"id": "q66", "question": "Peut-on toucher le chômage en créant son entreprise ?", "expected": ["F36613", "F15252"], "category": "freelance", "style": "sentence", "origin": "review-step-5", "split": "test"}
+{"id": "q67", "question": "Quel statut choisir pour créer mon entreprise ?", "expected": ["F23844"], "category": "freelance", "style": "sentence", "origin": "review-step-5", "split": "dev"}
+{"id": "q68", "question": "Comment déclarer mon chiffre d'affaires d'auto-entrepreneur ?", "expected": ["F23257"], "category": "freelance", "style": "sentence", "origin": "added-2026-10-27", "split": "dev"}
+{"id": "q69", "question": "Est-ce qu'un auto-entrepreneur doit faire payer la TVA à ses clients ?", "expected": ["F21746"], "category": "freelance", "style": "sentence", "origin": "added-2026-10-27", "split": "test"}
+{"id": "q70", "question": "Je suis salarié, est-ce que je peux aussi être micro-entrepreneur ?", "expected": ["F23264"], "category": "freelance", "style": "sentence", "origin": "added-2026-10-27", "split": "dev"}
+{"id": "q71", "question": "Comment obtenir un extrait Kbis ?", "expected": ["F21000"], "category": "freelance", "style": "sentence", "origin": "added-2026-10-27", "split": "dev"}
+{"id": "q72", "question": "Quelle assurance faut-il pour un auto-entrepreneur ?", "expected": ["F23667", "F23668"], "category": "freelance", "style": "sentence", "origin": "added-2026-10-27", "split": "test"}
+{"id": "q73", "question": "Faut-il ouvrir un compte bancaire séparé quand on est micro-entrepreneur ?", "expected": ["F35991"], "category": "freelance", "style": "sentence", "origin": "added-2026-10-27", "split": "dev"}
+{"id": "q74", "question": "retraite auto-entrepreneur", "expected": ["F23369"], "category": "freelance", "style": "keywords", "origin": "added-2026-10-27", "split": "test"}
+{"id": "q75", "question": "Je suis à la retraite, puis-je créer une micro-entreprise ?", "expected": ["F36611"], "category": "freelance", "style": "sentence", "origin": "added-2026-10-27", "split": "dev"}
+{"id": "q76", "question": "ACRE création entreprise", "expected": ["F11677"], "category": "freelance", "style": "keywords", "origin": "added-2026-10-27", "split": "dev"}
+{"id": "q77", "question": "Comment faire une facture quand on est freelance ?", "expected": ["F31808", "F36008", "F23208"], "category": "freelance", "style": "sentence", "origin": "added-2026-10-27", "split": "test"}
+{"id": "q78", "question": "J'ai dépassé le plafond de chiffre d'affaires de ma micro-entreprise, que se passe-t-il ?", "expected": ["F32353"], "category": "freelance", "style": "sentence", "origin": "added-2026-10-27", "split": "dev"}
+{"id": "q79", "question": "congé naissance travailleur indépendant", "expected": ["F39686"], "category": "freelance", "style": "keywords", "origin": "added-2026-10-27", "split": "dev"}
+{"id": "q80", "question": "Comment refaire ma carte d'identité perdue ?", "expected": ["F1344"], "category": "papiers", "style": "sentence", "origin": "added-2026-10-27", "split": "dev"}
+{"id": "q81", "question": "Combien coûte un passeport ?", "expected": ["F14929", "F21258"], "category": "papiers", "style": "sentence", "origin": "added-2026-10-27", "split": "test"}
+{"id": "q82", "question": "Comment s'inscrire à France Travail quand on perd son emploi ?", "expected": ["F1636"], "category": "travail", "style": "sentence", "origin": "added-2026-10-27", "split": "dev"}
+{"id": "q83", "question": "J'ai perdu ma carte Vitale, que faire ?", "expected": ["F265"], "category": "sante", "style": "sentence", "origin": "added-2026-10-27", "split": "test"}
+{"id": "q84", "question": "Comment obtenir la prime de naissance de la CAF ?", "expected": ["F2550"], "category": "caf", "style": "sentence", "origin": "added-2026-10-27", "split": "test"}
+{"id": "q85", "question": "Quand dois-je faire ma déclaration de revenus ?", "expected": ["F358", "F359"], "category": "impots", "style": "sentence", "origin": "added-2026-10-27", "split": "test"}

@@ -5,19 +5,24 @@ over the top 10 (a hit at rank r scores 1/r). Any of the expected ids counts.
 Reported overall and by `style`: "keywords" (what clients are told to send) vs
 "sentence" (how people phrase it, sent as is).
 
+Each question has a `split`: "dev" questions are the ones search settings are
+tuned on; "test" questions are only looked at to report results (see
+docs/decisions.md). Scores are given per split.
+
 low_confidence: on no-match questions (`expected: []`), whether search flags
 them (low_confidence, or no results). On answerable questions, a flag when the
 rank-1 result is correct is a false alarm; a flag when it is wrong is a useful
 warning.
 
 Usage: uv run python -m evals.run [--no-save]
-Writes evals/results/<date>-<search code commit>.md unless --no-save.
+Writes evals/results/<date>-<search code commit>-q<question set hash>.md unless --no-save.
 """
 
 from __future__ import annotations
 
 import collections
 import datetime as dt
+import hashlib
 import json
 import subprocess
 import sys
@@ -32,6 +37,7 @@ EVALS_DIR = Path(__file__).resolve().parent
 QUESTIONS = EVALS_DIR / "questions.jsonl"
 RESULTS_DIR = EVALS_DIR / "results"
 DEPTH = 10  # results fetched per question, for MRR
+SPLITS = ("dev", "test")
 
 
 def load_questions(path: Path = QUESTIONS) -> list[dict]:
@@ -74,6 +80,13 @@ def accuracy(ans: list[dict]) -> dict:
 
 
 def score(runs: list[dict]) -> dict:
+    """Scores over all runs, plus the same scores per split under "splits"."""
+    out = _score(runs)
+    out["splits"] = {sp: _score([r for r in runs if r.get("split") == sp]) for sp in SPLITS}
+    return out
+
+
+def _score(runs: list[dict]) -> dict:
     ans = [r for r in runs if r["expected"]]
     nomatch = [r for r in runs if not r["expected"]]
     right = [r for r in ans if r["rank"] == 1]
@@ -82,6 +95,7 @@ def score(runs: list[dict]) -> dict:
         "all": accuracy(ans),
         "keywords": accuracy([r for r in ans if r["style"] == "keywords"]),
         "sentence": accuracy([r for r in ans if r["style"] == "sentence"]),
+        "freelance": accuracy([r for r in ans if r["category"] == "freelance"]),
         "nomatch": len(nomatch),
         "nomatch_flagged": sum(_flagged(r) for r in nomatch),
         "rank1_right": len(right),
@@ -113,6 +127,11 @@ def _git_commit() -> str:
         return "unknown"
 
 
+def questions_hash(path: Path = QUESTIONS) -> str:
+    """Short hash of the question set, so reports on different sets never overwrite each other."""
+    return hashlib.sha256(path.read_bytes()).hexdigest()[:6]
+
+
 def _data_snapshot() -> str:
     conn = main._store().conn
     count, latest = conn.execute("SELECT count(*), max(updated_at) FROM fiches").fetchone()
@@ -129,29 +148,36 @@ def report(runs: list[dict], s: dict) -> str:
         "",
         f"- Search code (`main.py`, `paperasse/`): `{_git_commit()}`",
         f"- Data: {_data_snapshot()}",
-        f"- Questions: {len(runs)} ({s['all']['n']} answerable, {s['nomatch']} with no good match); "
-        f"low_confidence threshold {MIN_CONFIDENT_MATCH}",
+        f"- Questions: {len(runs)} ({s['all']['n']} answerable, {s['nomatch']} with no good match), "
+        f"set `{questions_hash()}`: "
+        + ", ".join(f"{sp} {s['splits'][sp]['all']['n']} answerable" for sp in SPLITS)
+        + f"; low_confidence threshold {MIN_CONFIDENT_MATCH}",
         "",
         "## Ranking",
         "",
         "\"Keywords\" is what clients are told to send (\"APL étudiant\"); \"sentence\" is a question "
-        "as people phrase it, sent as is (\"Comment avoir un garant gratuit pour louer ?\").",
+        "as people phrase it, sent as is (\"Comment avoir un garant gratuit pour louer ?\"). "
+        "\"Freelance\" overlaps both. Settings are tuned on dev; test is only reported.",
         "",
-        f"| Questions | n | Top-1 | Top-3 | MRR@{DEPTH} |",
-        "|---|---|---|---|---|",
+        f"| Split | Questions | n | Top-1 | Top-3 | MRR@{DEPTH} |",
+        "|---|---|---|---|---|---|",
     ]
-    for label, key in (("Keywords", "keywords"), ("Sentence", "sentence"), ("**All**", "all")):
-        a = s[key]
-        lines.append(f"| {label} | {a['n']} | {_pct(a['top1'], a['n'])} | {_pct(a['top3'], a['n'])} | {a['mrr']:.2f} |")
+    for split_label, sc in (("dev", s["splits"]["dev"]), ("**test**", s["splits"]["test"]), ("all", s)):
+        for label, key in (("Keywords", "keywords"), ("Sentence", "sentence"),
+                           ("Freelance", "freelance"), ("**All**", "all")):
+            a = sc[key]
+            lines.append(f"| {split_label} | {label} | {a['n']} | {_pct(a['top1'], a['n'])} | "
+                         f"{_pct(a['top3'], a['n'])} | {a['mrr']:.2f} |")
+    flagged = lambda num, den: " | ".join(_pct(s["splits"][sp][num], s["splits"][sp][den]) for sp in SPLITS)
     lines += [
         "",
         "## low_confidence",
         "",
-        "| Situation | Flagged |",
-        "|---|---|",
-        f"| No good match exists (off-topic, English, no content yet): should be flagged | {_pct(s['nomatch_flagged'], s['nomatch'])} |",
-        f"| Rank-1 result is wrong: flag is a useful warning | {_pct(s['useful_warnings'], s['rank1_wrong'])} |",
-        f"| Rank-1 result is right: flag is a false alarm | {_pct(s['false_alarms'], s['rank1_right'])} |",
+        "| Situation | Flagged (dev) | Flagged (test) |",
+        "|---|---|---|",
+        f"| No good match exists (off-topic, English): should be flagged | {flagged('nomatch_flagged', 'nomatch')} |",
+        f"| Rank-1 result is wrong: flag is a useful warning | {flagged('useful_warnings', 'rank1_wrong')} |",
+        f"| Rank-1 result is right: flag is a false alarm | {flagged('false_alarms', 'rank1_right')} |",
         "",
         "## By category",
         "",
@@ -168,11 +194,12 @@ def report(runs: list[dict], s: dict) -> str:
         lines.append(f"| {cat} | {len(rs)} | {t1} | {t3} |")
 
     lines += ["", "## Misses (correct fiche not at rank 1)", "",
-              "| Id | Question | Style | Expected | Rank | Top result | Flagged |", "|---|---|---|---|---|---|---|"]
+              "| Id | Split | Question | Style | Expected | Rank | Top result | Flagged |",
+              "|---|---|---|---|---|---|---|---|"]
     for r in runs:
         if r["expected"] and r["rank"] != 1:
             top = f"{r['ids'][0]} {r['titles'][0]}" if r["ids"] else "(none)"
-            lines.append(f"| {r['id']} | {r['question']} | {r['style']} | {', '.join(r['expected'])} | "
+            lines.append(f"| {r['id']} | {r['split']} | {r['question']} | {r['style']} | {', '.join(r['expected'])} | "
                          f"{r['rank'] or f'>{DEPTH}'} | {top} | {'yes' if _flagged(r) else 'no'} |")
 
     lines += ["", "## No-match questions", "", "| Id | Question | Category | Flagged | Top result (match) |", "|---|---|---|---|---|"]
@@ -202,7 +229,7 @@ def main_cli() -> None:
         # One file per search-code version, so a later run never overwrites a baseline.
         commit = _git_commit().split()[0]
         suffix = "-uncommitted" if "uncommitted" in _git_commit() else ""
-        out = RESULTS_DIR / f"{dt.date.today().isoformat()}-{commit}{suffix}.md"
+        out = RESULTS_DIR / f"{dt.date.today().isoformat()}-{commit}{suffix}-q{questions_hash()}.md"
         out.write_text(text, encoding="utf-8")
         print(f"Saved {out.relative_to(EVALS_DIR.parent)}")
 
