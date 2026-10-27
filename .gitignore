@@ -19,3 +19,6 @@ data/
 .DS_Store
 # Local Claude Code settings (may hold personal paths)
 .claude/settings.local.json
+
+# Demo recordings (large binaries; the GIF in docs/assets/ is the committed one)
+demo/out/
