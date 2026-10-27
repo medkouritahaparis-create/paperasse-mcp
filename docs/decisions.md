@@ -133,3 +133,28 @@ Each entry: context, options, decision, why.
   | 0.60 | 9/9 | 11/18 | 9/30 |
 
   0.55 looks slightly better, but the whole gain is one question ("cotisations sociales auto-entrepreneur", match 0.54), which review step 5 makes answerable. Changing the threshold for one data point would be overfitting, so it **stays at 0.5**, to be re-checked after step 5.
+
+## 2026-10-27 — Entreprendre feed, `audience` and merged fiches (review step 5)
+
+- **Context:** freelancer questions (micro-entreprise, URSSAF, CFE) had no answer: that content is in the DILA *Professionnels* feed (`.../vdd/3.5/pro/zip/vosdroits-latest.zip`, same schema 3.5), published on entreprendre.service-public.gouv.fr. On 2026-10-27 it has 775 fiches. 106 of them are also in the *Particuliers* feed, with the same id.
+- **Shared fiches:** for all 106, title, summary, update date and text are identical once link targets are removed (checked with `strip_links`). The only differences are `spUrl` (the page on each site), the breadcrumb and inner links pointing to the feed's own site.
+  - **Options:** (a) one row per (feed, id), so `get_fiche(id)` becomes ambiguous and "all" returns duplicates; (b) one row per id, with the official page for each audience.
+  - **Decision:** (b). `merge_feeds` keeps the first feed's version (*Particuliers*), adds the second audience, and stores `urls = {audience: page}`. The text is the same official text either way. 3,004 + 775 − 106 = 3,673 fiches. The raw files now live in `data/raw/particuliers/` and `data/raw/professionnels/`. `scripts/check_fidelity` passes on all 3,779 files of both feeds.
+- **`audience` parameter:** `search_fiche` accepts "particuliers", "professionnels" or "all", case-insensitive, and anything else is a clear error. With one audience, only fiches of that feed are searched, and `url` is the fiche's page on that audience's site (a shared fiche returns entreprendre.service-public.gouv.fr for "professionnels"). With "all", `url` is the primary page. Each result also lists `audiences`, and `get_fiche` returns `urls`.
+- **Default: "all".**
+  - Measured on the 61 answerable eval questions, before the hyphen fix below (the 48 *Particuliers* questions give identical by-category results either way):
+
+    | Default | Top-1 | Top-3 | MRR | Freelance (13) top-1 / top-3 |
+    |---|---|---|---|---|
+    | "particuliers" | 29 | 37 | 0.55 | 0 / 0 |
+    | **"all"** | **31** | **41** | **0.60** | 2 / 4 |
+
+  - A freelancer often asks as a person ("can I be auto-entrepreneur while studying?"). The client can't be relied on to pick "professionnels", and with the old default those questions found nothing relevant. Searching both costs nothing on the *Particuliers* questions here, and the client can still narrow the search.
+- **One index for both feeds:** BM25's word statistics (IDF, average length) are now computed over both feeds. On an index of the *Particuliers* fiches alone, the 48 original questions score exactly as on 2026-10-26 (30/38/0.71). On the shared index they score 29/37/0.69: q31 ("préavis", common in business fiches) drops from rank 1 to 3. That is one question, i.e. noise. Two separate indexes would need score merging for "all", so one index it is.
+- **Hyphenated query words:** "micro-entrepreneur" used to be split into "micro" and "entrepreneur". Both are in the title of ~40 pro fiches, so they counted twice and buried the rest of the query ("micro-entrepreneur franchise TVA" put F21746 *Franchise en base de TVA* at rank 52). "auto*" also matched "autorisation", "automobile" and so on. Hyphenated words are now one FTS5 phrase term (`"micro entrepreneur"*`), and `match()` checks them as a phrase. Stopwords at the ends are dropped ("peuvent-ils" → "peuvent", "a-t-on" → nothing). Effect: freelance 2 → 3 top-1, q58 and q61 enter the top 10, no change on the other 48 questions. All: 31/41/0.60 → **32/41/0.62**.
+- **Eval:** q27–q29 got expected ids (labelled from the fiche titles, like the rest). 10 freelancer questions were added (5 keywords, 5 sentences), making 67 questions, 61 answerable. Report: `evals/results/2026-10-27-337d5a8.md`.
+- **`low_confidence` threshold re-checked** (no-match flagged / useful warnings / false alarms): 0.40 → 6/6, 16/29, 7/32; 0.45 → 6/6, 17/29, 7/32; **0.50 → 6/6, 18/29, 7/32**; 0.55 → 6/6, 18/29, 8/32; 0.60 → 6/6, 20/29, 9/32. The 0.55 case from step 4 is gone (q29 is answerable now). **Stays at 0.5.**
+- **Known gaps, not fixed here (freelance top-1 is 3/13):**
+  - Vocabulary: users say "auto-entrepreneur" and "micro-entreprise", while titles say "micro-entrepreneur". The `search_fiche` docstring now gives that translation as an example, which helps real clients but not the eval, which sends questions as is.
+  - Full sentences: 0/5 freelance sentences are in the top 3, the same weakness as the *Particuliers* sentences.
+  - Candidates for a later ranking step, measured the same way: a small synonym list for official renames, or light stemming.

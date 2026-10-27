@@ -4,7 +4,7 @@
 An open-source MCP server that lets AI assistants (Claude and any MCP client) answer questions about French administrative procedures **using official sources only**, with a citable link for every answer.
 
 The server does not reason or give advice. It finds and returns official content:
-- **service-public.fr practical guides (fiches)**: downloaded from the open-data XML published by the DILA on data.gouv.fr
+- **service-public.fr practical guides (fiches)**: downloaded from the open-data XML published by the DILA on data.gouv.fr, for individuals (*Particuliers*) and for businesses / the self-employed (*Entreprendre*, audience `professionnels`)
 - **Légifrance law articles**: via the PISTE API (phase 2)
 - **Local help points** (France Services, préfectures, mairies): via the open Service-Public.fr directory API (phase 2)
 
@@ -20,7 +20,8 @@ Owner: Taha Medkouri. Personal side project, built on personal time and equipmen
   - Step 2 done: every `search_fiche` result has `match` (IDF-weighted share of the query in its title + summary). Responses have `low_confidence` + `hint` when the top match is below 0.5 (`MIN_CONFIDENT_MATCH`). That flags 11/13 bad queries and 2/26 good ones.
   - Step 3 done: `evals/questions.jsonl` (57 questions, labelled from fiche titles) and `evals/run.py`. Baseline (code 4e93a4c): keywords top-1 50% / top-3 85%; sentences 36% / 64%; all 44% / 75%, MRR 0.59. Report in `evals/results/2026-10-26-4e93a4c.md`, numbers in the README.
   - Step 4 done: the top 50 BM25 hits are re-ranked with a length prior (`LENGTH_PRIOR` = 0.075 in `store.py`). All: top-1 44% → 62%, top-3 75% → 79%, MRR 0.59 → 0.71. Every option tried, kept or rejected, is in `docs/decisions.md`. The `low_confidence` threshold stays at 0.5 (re-check after step 5).
-- Next step: review step 5, ingesting the *Entreprendre* feed (audience `professionnels`).
+  - Step 5 done (2026-10-27): both feeds ingested (`FEEDS` in `ingest.py`). 3,673 fiches: 3,004 *Particuliers* + 775 *Professionnels*, 106 in both, merged with one URL per site (`urls`). `search_fiche(audience=...)` takes "all" (default), "particuliers" or "professionnels", and returns the URL for that audience's site. Hyphenated query words are one phrase term. Eval: 67 questions (13 freelance); all top-1 52%, top-3 67%, MRR 0.62; freelance top-1 only 3/13 (vocabulary: auto-entrepreneur vs micro-entrepreneur). Threshold stays 0.5. Details in `docs/decisions.md`.
+- Next step: review step 6, open-source hygiene (LICENSE, README "Why" / "Try it", .gitignore check).
 
 ## Stack
 - Python 3.11+, managed with `uv`
@@ -34,7 +35,7 @@ Owner: Taha Medkouri. Personal side project, built on personal time and equipmen
 - Inspect / test tools by hand: `uv run mcp dev main.py`
 - Use in Claude Code: `.mcp.json` at the repo root registers the `paperasse` server (needs `data/paperasse.db`)
 - Tests: `uv run pytest`
-- Download feed + build `data/fiches.jsonl`: `uv run python -m paperasse.ingest` (add `--no-download` to reparse `data/raw/` only)
+- Download both feeds + build `data/fiches.jsonl`: `uv run python -m paperasse.ingest` (add `--no-download` to reparse `data/raw/particuliers/` and `data/raw/professionnels/` only)
 - Build search index `data/paperasse.db` from `data/fiches.jsonl`: `uv run python -m paperasse.store` (the server needs it)
 - Search eval: `uv run python -m evals.run` (writes `evals/results/<date>-<search code commit>.md`; `--no-save` to only print). Run it before and after any change that affects search.
 - Text quality checks (after re-ingesting): `uv run python -m scripts.dup_stats` (repeated text %), `uv run python -m scripts.check_fidelity` (every source paragraph reproduced)
@@ -57,8 +58,8 @@ paperasse-mcp/
 ## Tools (planned)
 | Tool | Returns |
 |---|---|
-| `search_fiche(query, audience="particuliers", limit=5)` | Top matching fiches: id, title, short summary, URL, updated_at, `match`; plus `low_confidence` (+ `hint`) when the best match is weak |
-| `get_fiche(id)` | Full fiche text, last update date, official URL |
+| `search_fiche(query, audience="all", limit=5)` | Top matching fiches: id, title, short summary, URL (on the requested audience's site), audiences, updated_at, `match`; plus `low_confidence` (+ `hint`) when the best match is weak. `audience`: "all", "particuliers" or "professionnels" |
+| `get_fiche(id)` | Full fiche text, last update date, official URL (`urls`: one per site for fiches in both feeds) |
 | `get_procedure_steps(id)` | Structured steps and required documents, when present in the fiche |
 | `get_legal_article(code, article)` | Article text + Légifrance URL (phase 2) |
 | `find_local_help(postcode, type)` | Nearest France Services / préfecture / mairie (phase 2) |

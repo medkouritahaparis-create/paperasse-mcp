@@ -1,14 +1,14 @@
 # Paperasse MCP
 
-An open-source [MCP](https://modelcontextprotocol.io) server that lets AI assistants answer questions about French administrative procedures **from official sources only**, with a citable link and last update date for every answer.
+An open-source [MCP](https://modelcontextprotocol.io) server that lets AI assistants answer questions about French administrative procedures **from official sources only**, with a citable link and last update date for every answer. It covers the guides for individuals (service-public.gouv.fr) and for professionals and the self-employed (entreprendre.service-public.gouv.fr).
 
-> **Status:** early development. Ingestion, keyword search (SQLite FTS5) and a search eval work. Ranking improvements are next.
+> **Status:** early development. Ingestion of both official feeds, keyword search (SQLite FTS5) and a search eval work.
 
 ## Quick start
 
 ```bash
 uv sync
-uv run python -m paperasse.ingest   # download the official feed and build data/fiches.jsonl
+uv run python -m paperasse.ingest   # download both official feeds and build data/fiches.jsonl
 uv run python -m paperasse.store    # build the search index data/paperasse.db
 uv run mcp dev main.py              # inspect the tools in the MCP Inspector
 uv run pytest
@@ -18,22 +18,23 @@ uv run pytest
 
 | Tool | What it does |
 |---|---|
-| `search_fiche(query, audience="particuliers", limit=5)` | Best matching service-public.fr fiches: id, title, summary, official URL, last update date and a `match` score. Says `low_confidence: true` when the best result probably doesn't answer the question |
-| `get_fiche(id, offset=0)` | Full official text of a fiche, with URL, update date, online services and legal sources; long fiches come in pages |
+| `search_fiche(query, audience="all", limit=5)` | Best matching fiches: id, title, summary, official URL, last update date and a `match` score. `audience` is `"all"`, `"particuliers"` (individuals) or `"professionnels"` (businesses, self-employed); the URL is the page on that audience's site. Says `low_confidence: true` when the best result probably doesn't answer the question |
+| `get_fiche(id, offset=0)` | Full official text of a fiche, with its URL on each site, update date, online services and legal sources; long fiches come in pages |
 
 ## Search quality
 
-Measured with [evals/questions.jsonl](evals/questions.jsonl): 57 questions with expected fiches labelled by hand from the fiche titles, not from search results. Current results, 2026-10-26 (search code `7f5f470`, 3,004 *Particuliers* fiches), with the first baseline (`4e93a4c`) in brackets:
+Measured with [evals/questions.jsonl](evals/questions.jsonl): 67 questions with expected fiches labelled by hand from the fiche titles, not from search results. Current results, 2026-10-27 (search code `337d5a8`, 3,673 fiches from both feeds, default `audience="all"`):
 
 | Questions | n | Top-1 | Top-3 | MRR@10 |
 |---|---|---|---|---|
-| Keywords, as clients are told to send them ("APL étudiant") | 26 | 77% (50%) | 85% (85%) | 0.82 (0.68) |
-| Full sentences, sent as is ("Comment avoir un garant gratuit pour louer ?") | 22 | 45% (36%) | 73% (64%) | 0.59 (0.50) |
-| All answerable | 48 | **62%** (44%) | **79%** (75%) | **0.71** (0.59) |
+| Everyday procedures, keywords as clients are told to send them ("APL étudiant") | 26 | 77% | 85% | 0.82 |
+| Everyday procedures, full sentences sent as is ("Comment avoir un garant gratuit pour louer ?") | 22 | 41% | 68% | 0.55 |
+| Freelancers / micro-entrepreneurs (8 keywords, 5 sentences) | 13 | 23% | 31% | 0.33 |
+| **All answerable** | 61 | **52%** | **67%** | **0.62** |
 
-The gain comes from one change, a mild boost for longer fiches, so main guides outrank short Q&A spin-offs. Thirteen other ranking ideas were tried and rejected; see [docs/decisions.md](docs/decisions.md). Full reports: [current](evals/results/2026-10-26-7f5f470.md), [baseline](evals/results/2026-10-26-4e93a4c.md).
+On the 48 everyday questions, the first baseline (`4e93a4c`) scored 44% top-1, 75% top-3 and MRR 0.59. A mild boost for longer fiches, so main guides outrank short Q&A spin-offs, brought that to 62% / 79% / 0.71 ([report](evals/results/2026-10-26-7f5f470.md)). Adding the business feed costs one question (60% / 77% / 0.69), because word statistics are now shared with business fiches. Freelancer questions are the weak spot: users say "auto-entrepreneur" where the official titles say "micro-entrepreneur". Every option tried is in [docs/decisions.md](docs/decisions.md). Reports: [current](evals/results/2026-10-27-337d5a8.md), [baseline](evals/results/2026-10-26-4e93a4c.md).
 
-`low_confidence` is set on 8 of 9 questions that have no good answer (off-topic, English, freelancer topics not covered yet). It is also set on 7 of 30 questions whose rank-1 result is right (false alarms).
+`low_confidence` is set on all 6 questions that have no good answer (off-topic, English). It is also set on 7 of 32 questions whose rank-1 result is right (false alarms).
 
 Reproduce:
 
@@ -45,7 +46,10 @@ The official feed is updated daily, so numbers can move slightly with the data. 
 
 ## Data and licence
 
-Content comes from **Service-Public.gouv.fr / DILA** (Direction de l'information légale et administrative), published as open data under the [Licence Ouverte / Etalab](https://www.etalab.gouv.fr/licence-ouverte-open-licence). Feed: [Fiches pratiques et ressources de Service-Public.gouv.fr Particuliers](https://www.data.gouv.fr/datasets/fiches-pratiques-et-ressources-de-service-public-gouv-fr-particuliers) (schema 3.5).
+Content comes from **Service-Public.gouv.fr / DILA** (Direction de l'information légale et administrative), published as open data under the [Licence Ouverte / Etalab](https://www.etalab.gouv.fr/licence-ouverte-open-licence). Two feeds, both schema 3.5:
+
+- [Fiches pratiques et ressources de Service-Public.gouv.fr Particuliers](https://www.data.gouv.fr/datasets/fiches-pratiques-et-ressources-de-service-public-gouv-fr-particuliers): guides for individuals, on service-public.gouv.fr.
+- [Fiches pratiques et ressources Entreprendre - Service-Public.gouv.fr](https://www.data.gouv.fr/datasets/fiches-pratiques-et-ressources-entreprendre-service-public-gouv-fr): guides for businesses and the self-employed, on entreprendre.service-public.gouv.fr. Downloaded from `https://lecomarquage.service-public.gouv.fr/vdd/3.5/pro/zip/vosdroits-latest.zip`.
 
 ## Disclaimer
 
