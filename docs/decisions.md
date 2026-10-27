@@ -216,3 +216,36 @@ Each entry: context, options, decision, why.
   - **Design:** embed each fiche's title + summary (+ breadcrumb) once at build time with a small multilingual model that runs locally (for example `intfloat/multilingual-e5-small` or `BAAI/bge-m3`), so there is no API dependency in the server. Store the vectors in SQLite (sqlite-vec) or a NumPy file next to the index. At query time, take the top 50 from BM25 (current pipeline) and the top 50 by cosine similarity, and fuse them with RRF (`score = Σ 1 / (60 + rank)`), which needs no score calibration between the two. Keep `match` / `low_confidence` on the lexical side.
   - **Why hybrid rather than replacing BM25:** BM25 is already strong on keywords (66–77% top-1) and on exact official names and acronyms (APL, ARE, CFE), where embeddings are weaker. RRF keeps those hits and adds the semantic ones.
   - **Measure:** dev first. Also give the two English questions expected fiche ids, since embeddings make them answerable.
+
+## 2026-10-27 — Plan: hosting Paperasse as a remote MCP server (not deployed)
+
+Plan only. Nothing is deployed and no account is created without the owner's approval.
+
+- **Goal:** anyone can add Paperasse as a custom connector in Claude (or any MCP client) by pasting a URL, with no clone, no `uv` and no data build.
+- **Transport:** MCP **Streamable HTTP**. The SDK already supports it: `mcp.run(transport="streamable-http")`, or `mcp.streamable_http_app()` mounted in an ASGI server (uvicorn) for a `/mcp` endpoint. stdio stays the default for local use, chosen by a `--http` flag or a `PAPERASSE_TRANSPORT` variable. The tools don't change.
+- **State:** the server is read-only. One SQLite file (`paperasse.db`, 65 MB today) holds everything, with no user data and no sessions. So any instance can serve any request, scale to zero, and be replaced at any time.
+- **Data refresh, daily:** build the data at **image build time**, not in the running server.
+  - A scheduled GitHub Actions workflow (e.g. 04:00 Paris) runs ingest, store, the tests, `scripts.check_fidelity` and the eval (`evals.run --no-save`).
+  - It refuses to publish if the fiche count drops by more than 5% or top-3 on the test split drops by more than 2 questions, which catches a broken feed or a schema change.
+  - Otherwise it builds a container image with the database inside and deploys it.
+  - Each day is an immutable image, so rollback is redeploying yesterday's. The feeds are about 33 MB and the build takes about a minute.
+- **Host options:**
+
+  | Option | Fit | Estimated cost |
+  |---|---|---|
+  | **Google Cloud Run** (container, scale to zero) | Stateless HTTP, pay per request, HTTPS and custom domain included, deploy from GitHub Actions with Workload Identity (no stored keys) | **≈ €0/month** at portfolio traffic (the free tier covers 2M requests and 360k GB-s/month); cold start ~1–2 s, fine for a tool call |
+  | Fly.io (1 shared-cpu machine, 256–512 MB) | Simple `fly deploy`, always on, no cold start | ≈ $2–4/month |
+  | Hugging Face Spaces (Docker) | Free, but it sleeps after inactivity and a public Space isn't meant as an API endpoint | €0, less reliable |
+
+  **Recommendation:** Cloud Run, with 512 MB memory (the 65 MB database is read through the OS page cache), `min-instances=0`, `max-instances=3` and concurrency 20.
+- **Safety and privacy:**
+  - No authentication is needed: the content is public open data and the tools are read-only.
+  - Per-IP rate limiting (e.g. 60 requests/min) at the proxy, and `max-instances` bounds the cost.
+  - **Query text is never logged**, because people may type personal situations into a question. Only counts, latency and errors are logged.
+  - Tool output keeps the source credit and the "not affiliated" notice. The service name and domain avoid any government branding (e.g. `paperasse-mcp.<owner domain>`, never a `gouv`-looking name).
+- **Steps, each to be approved by the owner:**
+  1. Add the HTTP transport, a `Dockerfile` and a `/healthz` route, and test locally with the MCP Inspector over HTTP.
+  2. Owner creates the Google Cloud project, the billing alert (€5) and the GitHub Workload Identity binding.
+  3. Add the nightly build-and-deploy workflow with the quality gates above.
+  4. Optionally, a custom domain.
+  5. README: a "Use it without installing" section with the connector URL.
