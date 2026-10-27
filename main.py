@@ -6,10 +6,12 @@ from typing import Any
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
-from paperasse.ingest import SOURCE_CREDIT
+from paperasse.ingest import AUDIENCES, SOURCE_CREDIT
 from paperasse.store import MIN_CONFIDENT_MATCH, FicheStore
 
 MAX_RESULTS = 10
+# Searching both feeds by default: see docs/decisions.md ("Audience").
+DEFAULT_AUDIENCE = "all"
 LOW_CONFIDENCE_HINT = (
     "These results may not match. Rephrase the query in French with official administrative terms."
 )
@@ -18,7 +20,8 @@ PAGE_CHARS = 40_000  # ~10k tokens; covers ~97% of fiches in one page
 mcp = MCPServer(
     name="paperasse",
     instructions=(
-        "Official information on French administrative procedures from service-public.fr. "
+        "Official information on French administrative procedures from service-public.fr "
+        "(for individuals) and entreprendre.service-public.fr (for businesses and the self-employed). "
         "Search with search_fiche, then read the fiche with get_fiche before answering. "
         "Always cite the returned url and updated_at. "
         "Not affiliated with the French administration."
@@ -46,19 +49,26 @@ def _page(text: str, offset: int, max_chars: int) -> tuple[str, int | None]:
 
 
 @mcp.tool()
-def search_fiche(query: str, audience: str = "particuliers", limit: int = 5) -> dict[str, Any]:
+def search_fiche(query: str, audience: str = DEFAULT_AUDIENCE, limit: int = 5) -> dict[str, Any]:
     """Search official service-public.fr guides (fiches) about a French administrative procedure.
 
     Use this first for any question about French paperwork: CAF (APL, RSA, prime d'activité),
-    URSSAF, impôts, titre de séjour, carte Vitale, logement social, carte grise, etc.
+    URSSAF, impôts, titre de séjour, carte Vitale, logement social, carte grise,
+    micro-entreprise, création d'entreprise, etc.
     The fiches are in French: always translate the user's question into a few French keywords
     using official administrative terms before calling, even if the user writes in another
     language (e.g. "I lost my residence permit" -> "perte titre de séjour";
-    "student housing aid" -> "APL étudiant"). Don't pass a full sentence.
+    "student housing aid" -> "APL étudiant"; "auto-entrepreneur" or "freelance" ->
+    "micro-entrepreneur"). Don't pass a full sentence.
+
+    `audience`: "all" (default) searches both guides for individuals (service-public.fr) and for
+    professionals (entreprendre.service-public.fr: self-employed, micro-entrepreneurs, companies,
+    employers). Pass "particuliers" or "professionnels" only when the user's situation is
+    clearly one or the other.
 
     Returns up to `limit` (max 10) fiches, best match first, each with id, title, summary,
-    official url, updated_at and `match` (0-1: how much of the query the title and summary
-    cover). Then call get_fiche(id) to read the full text before answering: the summary alone
+    official url (the page on the site of the requested audience), audiences, updated_at and
+    `match` (0-1: how much of the query the title and summary cover). Then call get_fiche(id) to read the full text before answering: the summary alone
     is not enough to answer.
 
     If `low_confidence` is true, the best result probably doesn't answer the question: retry
@@ -66,11 +76,12 @@ def search_fiche(query: str, audience: str = "particuliers", limit: int = 5) -> 
     If it is still low, don't present these fiches as the answer; say no matching official
     guide was found.
     """
-    if audience.strip().lower() != "particuliers":
-        raise ToolError("Only audience='particuliers' is available for now.")
+    audience = audience.strip().lower()
+    if audience != "all" and audience not in AUDIENCES:
+        raise ToolError(f"Unknown audience {audience!r}. Use 'all', " + " or ".join(repr(a) for a in AUDIENCES) + ".")
     if not query.strip():
         raise ToolError("Empty query. Describe the procedure in a few French keywords.")
-    results = _store().search(query, limit=max(1, min(limit, MAX_RESULTS)))
+    results = _store().search(query, limit=max(1, min(limit, MAX_RESULTS)), audience=audience)
     if not results:
         raise ToolError(
             f"No fiche found for {query!r}. Try broader or different French terms "
@@ -93,7 +104,8 @@ def get_fiche(id: str, offset: int = 0) -> dict[str, Any]:
     repeats a block word for word in several cases, it is given once; later copies are replaced by
     a line "[Paperasse : identique à « … » plus haut (sous « … »)]" pointing to the first copy.
 
-    Returns title, url, updated_at, text, online_services (official online procedures with
+    Returns title, url, urls (the official page on each site, for fiches written for both
+    individuals and professionals), updated_at, text, online_services (official online procedures with
     links) and sources (legal texts). Long fiches come in pages: if `next_offset` is not null,
     call again with offset=next_offset to read more. For paged fiches, `outline` lists the
     main headings with their offset: call get_fiche(id, offset=...) to jump to a section.

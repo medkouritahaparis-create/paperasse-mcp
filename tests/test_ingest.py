@@ -1,8 +1,9 @@
+import re
 from pathlib import Path
 
 import pytest
 
-from paperasse.ingest import iter_fiches, parse_fiche, strip_links
+from paperasse.ingest import Fiche, iter_fiches, merge_feeds, parse_fiche, strip_links
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -15,7 +16,7 @@ def fiche():
 def test_metadata(fiche):
     assert fiche.id == "F99999"
     assert fiche.title == "Demande de carte de test"
-    assert fiche.audience == "Particuliers"
+    assert fiche.audiences == ["particuliers"]
     assert fiche.summary == "Comment demander une carte de test."
     assert fiche.theme == "Papiers"
     assert fiche.breadcrumb == ["Accueil particuliers", "Papiers"]
@@ -24,6 +25,7 @@ def test_metadata(fiche):
 
 def test_source_url_and_dates(fiche):
     assert fiche.url == "https://www.service-public.gouv.fr/particuliers/vosdroits/F99999"
+    assert fiche.urls == {"particuliers": fiche.url}
     assert fiche.updated_at == "2026-09-11"
     assert fiche.important_update_at == "2026-03-06"
 
@@ -74,6 +76,35 @@ def test_iter_fiches_only_reads_fiches(tmp_path):
     (tmp_path / "F99999.xml").write_bytes((FIXTURES / "F99999.xml").read_bytes())
     (tmp_path / "R1.xml").write_text("<Publication/>")
     assert [f.id for f in iter_fiches(tmp_path)] == ["F99999"]
+
+
+def test_pro_fiche_without_spurl_gets_entreprendre_url(tmp_path):
+    xml = (FIXTURES / "F99999.xml").read_text(encoding="utf-8")
+    path = tmp_path / "F99999.xml"
+    path.write_text(re.sub(r' spUrl="[^"]*"', "", xml), encoding="utf-8")
+    f = parse_fiche(path, "professionnels")
+    assert f.audiences == ["professionnels"]
+    assert f.url == "https://entreprendre.service-public.gouv.fr/vosdroits/F99999"
+
+
+def _fiche(fid: str, audience: str, text: str) -> Fiche:
+    url = f"https://{audience}.example/{fid}"
+    return Fiche(id=fid, title=fid, type="", audiences=[audience], summary="", text=text, url=url,
+                 urls={audience: url}, updated_at="2026-01-01", important_update_at=None, theme=None)
+
+
+def test_merge_feeds_keeps_one_fiche_with_both_urls():
+    merged = merge_feeds({
+        "particuliers": iter([_fiche("F1", "particuliers", "part text"), _fiche("F2", "particuliers", "")]),
+        "professionnels": iter([_fiche("F1", "professionnels", "pro text"), _fiche("F3", "professionnels", "")]),
+    })
+    assert [f.id for f in merged] == ["F1", "F2", "F3"]
+    f1 = merged[0]
+    assert f1.audiences == ["particuliers", "professionnels"]
+    assert f1.urls == {"particuliers": "https://particuliers.example/F1",
+                       "professionnels": "https://professionnels.example/F1"}
+    assert (f1.url, f1.text) == ("https://particuliers.example/F1", "part text")  # first feed is primary
+    assert merged[2].audiences == ["professionnels"]
 
 
 def test_missing_date_is_an_error(tmp_path):

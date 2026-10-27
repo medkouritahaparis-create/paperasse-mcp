@@ -5,7 +5,7 @@ credits, alternative titles, questionnaire logic: see SKIPPED_TAGS) are not
 checked. Link URLs are ignored in the comparison. A paragraph inside a repeated
 block counts as reproduced if its first copy is in the text.
 
-Usage: uv run python -m scripts.check_fidelity [data/raw]
+Usage: uv run python -m scripts.check_fidelity [data/raw]  (checks both feeds by default)
 """
 
 import sys
@@ -38,12 +38,12 @@ def missing_paragraphs(path: Path) -> list[str]:
 
 def main() -> None:
     raw = Path(sys.argv[1] if len(sys.argv) > 1 else "data/raw")
-    files = sorted(raw.glob("F*.xml"))
+    files = sorted(raw.rglob("F*.xml"))
     bad = {}
     for f in files:
         m = missing_paragraphs(f)
         if m:
-            bad[f.name] = m
+            bad[str(f.relative_to(raw))] = m
     print(f"{len(files)} fiches checked, {len(bad)} with missing paragraphs, "
           f"{sum(map(len, bad.values()))} paragraphs missing")
     for name, m in list(bad.items())[:10]:

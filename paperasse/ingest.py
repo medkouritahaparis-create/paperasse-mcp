@@ -1,11 +1,14 @@
 """Parse the service-public.fr XML feed (DILA, schema 3.5) into clean fiches.
 
-The feed is a zip of one XML file per publication. Fiches (F*.xml) are the
-practical guides we serve. Their text is rendered to plain Markdown-like text
+There are two feeds with the same schema: *Particuliers* (service-public.gouv.fr)
+and *Professionnels* (entreprendre.service-public.gouv.fr). Each is a zip of one
+XML file per publication. Fiches (F*.xml) are the practical guides we serve.
+About 100 fiches are in both feeds, with the same id and text but a page (URL)
+on each site: they are merged into one fiche with both URLs. Their text is rendered to plain Markdown-like text
 without rewording anything: we only drop markup and keep the structure
 (headings, lists, tables, cases).
 
-Run `uv run python -m paperasse.ingest` to download the feed and write
+Run `uv run python -m paperasse.ingest` to download both feeds and write
 data/fiches.jsonl.
 """
 
@@ -23,7 +26,13 @@ from typing import Iterator
 from xml.etree import ElementTree as ET
 
 FEED_VERSION = "3.5"
-FEED_URL = f"https://lecomarquage.service-public.gouv.fr/vdd/{FEED_VERSION}/part/zip/vosdroits-latest.zip"
+# Audience -> feed. Order matters: for a fiche in both feeds, the first one's
+# text and URL are the primary ones.
+FEEDS = {
+    "particuliers": f"https://lecomarquage.service-public.gouv.fr/vdd/{FEED_VERSION}/part/zip/vosdroits-latest.zip",
+    "professionnels": f"https://lecomarquage.service-public.gouv.fr/vdd/{FEED_VERSION}/pro/zip/vosdroits-latest.zip",
+}
+AUDIENCES = tuple(FEEDS)
 SOURCE_CREDIT = "Service-Public.gouv.fr / DILA, Licence Ouverte (Etalab)"
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -78,10 +87,11 @@ class Fiche:
     id: str
     title: str
     type: str
-    audience: str
+    audiences: list[str]  # feeds the fiche is in: "particuliers", "professionnels"
     summary: str
     text: str
-    url: str
+    url: str  # official page in the primary audience
+    urls: dict[str, str]  # official page by audience (the same fiche has a page on each site)
     updated_at: str  # last update of the fiche (YYYY-MM-DD)
     important_update_at: str | None  # last *important* change, if the feed gives one
     theme: str | None
@@ -286,11 +296,14 @@ def _updated_at(root: ET.Element) -> str:
     return m.group(0)
 
 
-def parse_fiche(path: Path) -> Fiche:
+def parse_fiche(path: Path, audience: str = "particuliers") -> Fiche:
+    """Parse one fiche from the feed of `audience` ("particuliers" or "professionnels")."""
     root = ET.parse(path).getroot()
     if root.tag != "Publication":
         raise ValueError(f"{path.name}: not a Publication")
     fid = root.get("ID") or ""
+    # spUrl is the page on the site of this feed (a few pro fiches point to the particuliers site).
+    url = root.get("spUrl") or FICHE_URL_BASE[audience.capitalize()] + fid
     important = root.get("dateDerniereModificationImportante")
     sources = [s.strip() for s in (root.findtext(f"{DC}source") or "").split(",") if s.strip()]
     online = [
@@ -302,10 +315,11 @@ def parse_fiche(path: Path) -> Fiche:
         id=fid,
         title=_clean(root.findtext(f"{DC}title") or ""),
         type=root.get("type") or "",
-        audience=_clean(root.findtext("Audience") or ""),
+        audiences=[audience],
         summary=_clean(root.findtext(f"{DC}description") or ""),
         text=_render_text(root),
-        url=root.get("spUrl") or f"https://www.service-public.gouv.fr/particuliers/vosdroits/{fid}",
+        url=url,
+        urls={audience: url},
         updated_at=_updated_at(root),
         important_update_at=important[:10] if important else None,
         theme=_clean(root.findtext("Theme/Titre") or "") or None,
@@ -315,38 +329,60 @@ def parse_fiche(path: Path) -> Fiche:
     )
 
 
-def iter_fiches(raw_dir: Path) -> Iterator[Fiche]:
-    """Yield every fiche (F*.xml) in the unzipped feed, sorted by ID."""
+def iter_fiches(raw_dir: Path, audience: str = "particuliers") -> Iterator[Fiche]:
+    """Yield every fiche (F*.xml) in one unzipped feed, sorted by ID."""
     for path in sorted(raw_dir.glob("F*.xml")):
-        yield parse_fiche(path)
+        yield parse_fiche(path, audience)
 
 
-def download_feed(data_dir: Path = DATA_DIR) -> Path:
-    """Download and unzip the latest feed. Returns the directory of XML files."""
+def merge_feeds(feeds: dict[str, Iterator[Fiche]]) -> list[Fiche]:
+    """One fiche per id across feeds, in feed order then id order.
+
+    A fiche in several feeds has the same text in each (only its links point to
+    the other site), so the first feed's version is kept and the others add
+    their audience and page URL.
+    """
+    merged: dict[str, Fiche] = {}
+    for audience, fiches in feeds.items():
+        for f in fiches:
+            if f.id in merged:
+                merged[f.id].audiences.append(audience)
+                merged[f.id].urls[audience] = f.url
+            else:
+                merged[f.id] = f
+    return list(merged.values())
+
+
+def raw_dir(audience: str, data_dir: Path = DATA_DIR) -> Path:
+    return data_dir / "raw" / audience
+
+
+def download_feed(audience: str, data_dir: Path = DATA_DIR) -> Path:
+    """Download and unzip the latest feed of an audience. Returns the directory of XML files."""
     data_dir.mkdir(parents=True, exist_ok=True)
-    zip_path = data_dir / "vosdroits-latest.zip"
-    raw_dir = data_dir / "raw"
-    with urllib.request.urlopen(FEED_URL, timeout=120) as resp, open(zip_path, "wb") as f:
+    zip_path = data_dir / f"vosdroits-{audience}-latest.zip"
+    raw_dir_ = raw_dir(audience, data_dir)
+    with urllib.request.urlopen(FEEDS[audience], timeout=120) as resp, open(zip_path, "wb") as f:
         shutil.copyfileobj(resp, f)
-    if raw_dir.exists():
-        shutil.rmtree(raw_dir)
+    if raw_dir_.exists():
+        shutil.rmtree(raw_dir_)
     with zipfile.ZipFile(zip_path) as z:
-        z.extractall(raw_dir)
-    return raw_dir
+        z.extractall(raw_dir_)
+    return raw_dir_
 
 
 def main() -> None:
-    raw_dir = DATA_DIR / "raw"
     if "--no-download" not in sys.argv:
-        print(f"Downloading {FEED_URL}")
-        download_feed()
+        for audience, url in FEEDS.items():
+            print(f"Downloading {url}")
+            download_feed(audience)
+    fiches = merge_feeds({a: iter_fiches(raw_dir(a), a) for a in AUDIENCES})
     out = DATA_DIR / "fiches.jsonl"
-    count = 0
     with open(out, "w", encoding="utf-8") as f:
-        for fiche in iter_fiches(raw_dir):
+        for fiche in fiches:
             f.write(json.dumps(asdict(fiche), ensure_ascii=False) + "\n")
-            count += 1
-    print(f"Wrote {count} fiches to {out}")
+    counts = {a: sum(a in f.audiences for f in fiches) for a in AUDIENCES}
+    print(f"Wrote {len(fiches)} fiches to {out} ({', '.join(f'{n} {a}' for a, n in counts.items())})")
 
 
 if __name__ == "__main__":

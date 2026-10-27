@@ -95,7 +95,7 @@ def test_match_is_share_of_query_in_title_and_summary(store):
 
 
 def test_match_weights_rare_words_more(store):
-    # "étudiant" is in 2 of 4 fiches, "transport" in 1: matching the rarer word counts more.
+    # "étudiant" is in 2 fiches, "transport" in 1: matching the rarer word counts more.
     rare = store.match("étudiant transport", "Carte de transport", "")
     common = store.match("étudiant transport", "Aide pour étudiant", "")
     assert 0 < common < rare < 1
@@ -123,3 +123,35 @@ def test_search_and_get_do_not_leak_ranking_internals(store):
     hit = store.search("aide logement étudiant")[0]
     assert "bm25" not in hit and "text_len" not in hit
     assert "text_len" not in store.get("F1")
+
+
+def test_hyphenated_words_are_one_phrase_term():
+    assert query_terms("cotisations auto-entrepreneur") == ["cotisations", "auto-entrepreneur"]
+    assert to_fts_query("micro-entrepreneur TVA") == '"micro entrepreneur"* OR "tva"'
+    # Stopwords at the ends of a hyphenated word are dropped.
+    assert query_terms("Combien de congés a-t-on ? Peuvent-ils") == ["congés", "peuvent"]
+
+
+def test_match_finds_hyphenated_terms_as_phrases(store):
+    assert store.match("micro-entrepreneur", "Devenir micro-entrepreneurs", "") == 1.0
+    assert store.match("micro-entrepreneur", "Micro crédit pour entrepreneur", "") == 0.0
+
+
+def test_search_filters_by_audience(store):
+    ids = lambda q, a: [h["id"] for h in store.search(q, audience=a)]
+    assert ids("micro-entrepreneur", "professionnels") == ["F5"]
+    assert ids("micro-entrepreneur", "particuliers") == []
+    assert ids("micro-entrepreneur", "all") == ["F5"]
+    assert ids("congé naissance", "particuliers") == ids("congé naissance", "professionnels") == ["F6"]
+    with pytest.raises(ValueError):
+        store.search("congé", audience="entreprises")
+
+
+def test_shared_fiche_url_follows_requested_audience(store):
+    url = lambda a: store.search("congé naissance", audience=a)[0]["url"]
+    assert url("particuliers") == "https://www.service-public.gouv.fr/particuliers/vosdroits/F6"
+    assert url("professionnels") == "https://entreprendre.service-public.gouv.fr/vosdroits/F6"
+    assert url("all") == url("particuliers")  # primary page
+    hit = store.search("congé naissance")[0]
+    assert hit["audiences"] == ["particuliers", "professionnels"] and "urls" not in hit
+    assert store.get("F6")["urls"] == {"particuliers": url("particuliers"), "professionnels": url("professionnels")}

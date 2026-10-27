@@ -47,6 +47,15 @@ def test_search_fiche_docstring_tells_client_to_use_french():
     assert "translate" in doc and "low_confidence" in doc
 
 
+def test_search_fiche_audience_defaults_to_all_and_gives_pro_urls():
+    assert main.search_fiche("micro-entrepreneur")["results"][0]["id"] == "F5"
+    out = main.search_fiche("micro-entrepreneur", audience=" Professionnels ")
+    first = out["results"][0]
+    assert first["url"] == "https://entreprendre.service-public.gouv.fr/vosdroits/F5"
+    assert first["audiences"] == ["professionnels"] and first["updated_at"]
+    assert out["source"] == SOURCE_CREDIT
+
+
 def test_search_fiche_limit_is_capped():
     assert len(main.search_fiche("étudiant", limit=1)["results"]) == 1
     assert len(main.search_fiche("fiche", limit=999)["results"]) <= main.MAX_RESULTS
@@ -57,7 +66,7 @@ def test_search_fiche_limit_is_capped():
     [
         ({"query": "zzzinconnu"}, "No fiche found"),
         ({"query": "   "}, "Empty query"),
-        ({"query": "logement", "audience": "professionnels"}, "particuliers"),
+        ({"query": "logement", "audience": "entreprises"}, "Unknown audience"),
     ],
 )
 def test_search_fiche_errors_are_explained(kwargs, message):

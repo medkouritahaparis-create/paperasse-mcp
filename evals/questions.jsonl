@@ -24,9 +24,9 @@
 {"id": "q24", "question": "perte de papiers d'identité", "expected": ["F31421"], "category": "papiers", "style": "keywords", "origin": "manual-test-2026-10-26"}
 {"id": "q25", "question": "chômage démission", "expected": ["F34991", "F89"], "category": "travail", "style": "keywords", "origin": "manual-test-2026-10-26"}
 {"id": "q26", "question": "rupture conventionnelle indemnité", "expected": ["F31539"], "category": "travail", "style": "keywords", "origin": "manual-test-2026-10-26"}
-{"id": "q27", "question": "micro-entrepreneur déclaration chiffre d'affaires URSSAF", "expected": [], "category": "freelance", "style": "keywords", "origin": "manual-test-2026-10-26", "note": "No Entreprendre (professionnels) feed yet: review step 5 adds it and these get expected ids."}
-{"id": "q28", "question": "créer une micro-entreprise", "expected": [], "category": "freelance", "style": "keywords", "origin": "manual-test-2026-10-26", "note": "No Entreprendre (professionnels) feed yet: review step 5 adds it and these get expected ids."}
-{"id": "q29", "question": "cotisations sociales auto-entrepreneur", "expected": [], "category": "freelance", "style": "keywords", "origin": "manual-test-2026-10-26", "note": "No Entreprendre (professionnels) feed yet: review step 5 adds it and these get expected ids."}
+{"id": "q27", "question": "micro-entrepreneur déclaration chiffre d'affaires URSSAF", "expected": ["F23257", "F37353"], "category": "freelance", "style": "keywords", "origin": "manual-test-2026-10-26"}
+{"id": "q28", "question": "créer une micro-entreprise", "expected": ["F23961", "F36746"], "category": "freelance", "style": "keywords", "origin": "manual-test-2026-10-26"}
+{"id": "q29", "question": "cotisations sociales auto-entrepreneur", "expected": ["F36232", "F37353"], "category": "freelance", "style": "keywords", "origin": "manual-test-2026-10-26"}
 {"id": "q30", "question": "Mon propriétaire ne me rend pas ma caution, il a combien de temps pour me la rendre ?", "expected": ["F31269"], "category": "logement", "style": "sentence", "origin": "added-2026-10-26"}
 {"id": "q31", "question": "Je veux quitter mon appartement, combien de temps de préavis je dois donner ?", "expected": ["F1168", "F32360"], "category": "logement", "style": "sentence", "origin": "added-2026-10-26"}
 {"id": "q32", "question": "Comment avoir un garant gratuit pour louer un appartement ?", "expected": ["F33453"], "category": "logement", "style": "sentence", "origin": "added-2026-10-26"}
@@ -55,3 +55,13 @@
 {"id": "q55", "question": "météo demain Marseille", "expected": [], "category": "off_topic", "style": "keywords", "origin": "added-2026-10-26"}
 {"id": "q56", "question": "I lost my residence permit what do I do", "expected": [], "category": "english", "style": "sentence", "origin": "added-2026-10-26", "note": "The server only searches French text; clients are told to translate first, so the raw English query should be flagged low_confidence."}
 {"id": "q57", "question": "how do I renew my visa in France", "expected": [], "category": "english", "style": "sentence", "origin": "added-2026-10-26", "note": "The server only searches French text; clients are told to translate first, so the raw English query should be flagged low_confidence."}
+{"id": "q58", "question": "micro-entrepreneur franchise TVA", "expected": ["F21746"], "category": "freelance", "style": "keywords", "origin": "review-step-5"}
+{"id": "q59", "question": "auto-entrepreneur CFE", "expected": ["F23999"], "category": "freelance", "style": "keywords", "origin": "review-step-5"}
+{"id": "q60", "question": "numéro Siret", "expected": ["F32135"], "category": "freelance", "style": "keywords", "origin": "review-step-5"}
+{"id": "q61", "question": "plafond chiffre d'affaires micro-entreprise", "expected": ["F32353"], "category": "freelance", "style": "keywords", "origin": "review-step-5"}
+{"id": "q62", "question": "impôt micro-entrepreneur versement libératoire", "expected": ["F36244", "F23267"], "category": "freelance", "style": "keywords", "origin": "review-step-5"}
+{"id": "q63", "question": "Je suis étudiant, est-ce que je peux être auto-entrepreneur ?", "expected": ["F36612"], "category": "freelance", "style": "sentence", "origin": "review-step-5"}
+{"id": "q64", "question": "Quelles mentions mettre sur une facture ?", "expected": ["F31808"], "category": "freelance", "style": "sentence", "origin": "review-step-5"}
+{"id": "q65", "question": "Comment fermer ma micro-entreprise ?", "expected": ["F20678"], "category": "freelance", "style": "sentence", "origin": "review-step-5"}
+{"id": "q66", "question": "Peut-on toucher le chômage en créant son entreprise ?", "expected": ["F36613", "F15252"], "category": "freelance", "style": "sentence", "origin": "review-step-5"}
+{"id": "q67", "question": "Quel statut choisir pour créer mon entreprise ?", "expected": ["F23844"], "category": "freelance", "style": "sentence", "origin": "review-step-5"}

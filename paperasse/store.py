@@ -15,7 +15,7 @@ from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-from paperasse.ingest import DATA_DIR, Fiche, strip_links
+from paperasse.ingest import AUDIENCES, DATA_DIR, Fiche, strip_links
 
 DB_PATH = DATA_DIR / "paperasse.db"
 JSONL_PATH = DATA_DIR / "fiches.jsonl"
@@ -51,10 +51,11 @@ CREATE TABLE fiches (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     type TEXT NOT NULL,
-    audience TEXT NOT NULL,
+    audiences TEXT NOT NULL,        -- JSON list: "particuliers", "professionnels"
     summary TEXT NOT NULL,
     text TEXT NOT NULL,
-    url TEXT NOT NULL,
+    url TEXT NOT NULL,              -- official page in the primary audience
+    urls TEXT NOT NULL,             -- JSON {{audience: official page}}
     updated_at TEXT NOT NULL,
     important_update_at TEXT,
     theme TEXT,
@@ -87,10 +88,10 @@ def build_index(fiches: Iterable[Fiche | dict[str, Any]], db_path: Path = DB_PAT
         for f in fiches:
             row = asdict(f) if is_dataclass(f) else f
             cur = conn.execute(
-                "INSERT INTO fiches VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO fiches VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
-                    row["id"], row["title"], row["type"], row["audience"], row["summary"],
-                    row["text"], row["url"], row["updated_at"], row["important_update_at"],
+                    row["id"], row["title"], row["type"], json.dumps(row["audiences"]), row["summary"],
+                    row["text"], row["url"], json.dumps(row["urls"]), row["updated_at"], row["important_update_at"],
                     row["theme"], json.dumps(row["breadcrumb"], ensure_ascii=False),
                     json.dumps(row["online_services"], ensure_ascii=False),
                     json.dumps(row["sources"], ensure_ascii=False),
@@ -110,19 +111,36 @@ def build_index(fiches: Iterable[Fiche | dict[str, Any]], db_path: Path = DB_PAT
     return count
 
 
+def _is_noise(word: str) -> bool:
+    return len(word) < 2 or word in STOPWORDS
+
+
 def query_terms(query: str) -> list[str]:
-    """Meaningful words of a query, lowercased, deduplicated, stopwords removed."""
+    """Meaningful words of a query, lowercased, deduplicated, stopwords removed.
+
+    Hyphenated words stay one term ("micro-entrepreneur"), searched as a phrase:
+    split in two, they would count twice and outweigh the rest of the query.
+    Stopwords at their ends are dropped ("peuvent-ils" -> "peuvent", "a-t-on" -> nothing).
+    """
     terms: list[str] = []
-    for w in re.findall(r"\w+", query.lower()):
-        if len(w) >= 2 and w not in STOPWORDS and w not in terms:
-            terms.append(w)
+    for token in re.findall(r"\w+(?:-\w+)*", query.lower()):
+        parts = token.split("-")
+        while parts and _is_noise(parts[0]):
+            parts.pop(0)
+        while parts and _is_noise(parts[-1]):
+            parts.pop()
+        term = "-".join(parts)
+        if term and term not in terms:
+            terms.append(term)
     return terms
 
 
 def _fts_term(term: str) -> str:
     # Words of 4+ letters get a prefix match to catch French plurals and
-    # variants ("allocation" -> "allocations").
-    return f'"{term}"' + ("*" if len(term) >= 4 else "")
+    # variants ("allocation" -> "allocations"). A hyphenated term is a phrase:
+    # "micro-entrepreneur" matches "micro-entrepreneurs" but not "micro" alone.
+    last = term.rsplit("-", 1)[-1]
+    return '"' + term.replace("-", " ") + '"' + ("*" if len(last) >= 4 else "")
 
 
 def to_fts_query(query: str) -> str | None:
@@ -140,8 +158,16 @@ def _fold(text: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFKD", text.lower()) if not unicodedata.combining(c))
 
 
-def _contains(term: str, words: set[str]) -> bool:
-    return term in words or (len(term) >= 4 and any(w.startswith(term) for w in words))
+def _contains(term: str, words: list[str]) -> bool:
+    """Whether a (folded) query term is in a list of (folded) words, as _fts_term would match it."""
+    parts = term.split("-")
+    n, last = len(parts), parts[-1]
+    for i in range(len(words) - n + 1):
+        if words[i:i + n - 1] == parts[:-1] and (
+            words[i + n - 1] == last or (len(last) >= 4 and words[i + n - 1].startswith(last))
+        ):
+            return True
+    return False
 
 
 def normalize_id(fiche_id: str) -> str:
@@ -181,37 +207,44 @@ class FicheStore:
         terms = [_fold(t) for t in query_terms(query)]
         if not terms:
             return 0.0
-        words = set(re.findall(r"\w+", _fold(f"{title} {summary}")))
+        words = re.findall(r"\w+", _fold(f"{title} {summary}"))
         weights = {t: self.idf(t) for t in terms}
         found = sum(w for t, w in weights.items() if _contains(t, words))
         return found / sum(weights.values())
 
-    def search(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
+    def search(self, query: str, limit: int = 5, audience: str = "all") -> list[dict[str, Any]]:
         """Best matching fiches for a question, most relevant first.
 
-        Each result has a `match` score in [0, 1]: see `match()`.
+        `audience` is "particuliers", "professionnels" or "all". With one
+        audience, only its fiches are searched and `url` is the fiche's page on
+        that audience's site. Each result has a `match` score in [0, 1]: see `match()`.
         """
+        if audience != "all" and audience not in AUDIENCES:
+            raise ValueError(f"Unknown audience {audience!r}")
         fts = to_fts_query(query)
         if fts is None:
             return []
         weights = ", ".join(str(w) for w in BM25_WEIGHTS)
         rows = self.conn.execute(
             f"""
-            SELECT f.id, f.title, f.summary, f.url, f.updated_at, f.theme,
+            SELECT f.id, f.title, f.summary, f.url, f.urls, f.audiences, f.updated_at, f.theme,
                    bm25(fiches_fts, {weights}) AS bm25, f.text_len
             FROM fiches_fts
             JOIN fiches f ON f.rowid = fiches_fts.rowid
-            WHERE fiches_fts MATCH ?
+            WHERE fiches_fts MATCH ? AND (? = 'all' OR f.audiences LIKE '%"' || ? || '"%')
             ORDER BY bm25
             LIMIT ?
             """,
-            (fts, max(limit, RERANK_POOL)),
+            (fts, audience, audience, max(limit, RERANK_POOL)),
         ).fetchall()
         # bm25() is negative, lower is better; the prior makes longer fiches more negative.
         rows = sorted(rows, key=lambda r: r["bm25"] * (1 + LENGTH_PRIOR * math.log1p(r["text_len"])))
         results = [dict(r) for r in rows[:limit]]
         for r in results:
             del r["bm25"], r["text_len"]
+            urls = json.loads(r.pop("urls"))
+            r["url"] = urls.get(audience, r["url"])
+            r["audiences"] = json.loads(r["audiences"])
             r["match"] = round(self.match(query, r["title"], r["summary"]), 2)
         return results
 
@@ -222,7 +255,7 @@ class FicheStore:
             return None
         fiche = dict(row)
         del fiche["text_len"]
-        for key in ("breadcrumb", "online_services", "sources"):
+        for key in ("audiences", "urls", "breadcrumb", "online_services", "sources"):
             fiche[key] = json.loads(fiche[key])
         return fiche
 
