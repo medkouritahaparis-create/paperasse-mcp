@@ -22,7 +22,15 @@ Owner: Taha Medkouri. Personal side project, built on personal time and equipmen
   - Step 4 done: the top 50 BM25 hits are re-ranked with a length prior (`LENGTH_PRIOR` = 0.075 in `store.py`). All: top-1 44% → 62%, top-3 75% → 79%, MRR 0.59 → 0.71. Every option tried, kept or rejected, is in `docs/decisions.md`. The `low_confidence` threshold stays at 0.5 (re-check after step 5).
   - Step 5 done (2026-10-27): both feeds ingested (`FEEDS` in `ingest.py`). 3,673 fiches: 3,004 *Particuliers* + 775 *Professionnels*, 106 in both, merged with one URL per site (`urls`). `search_fiche(audience=...)` takes "all" (default), "particuliers" or "professionnels", and returns the URL for that audience's site. Hyphenated query words are one phrase term. Eval: 67 questions (13 freelance); all top-1 52%, top-3 67%, MRR 0.62; freelance top-1 only 3/13 (vocabulary: auto-entrepreneur vs micro-entrepreneur). Threshold stays 0.5. Details in `docs/decisions.md`.
   - Step 6 done (2026-10-27): MIT `LICENSE` (code only; served content stays Licence Ouverte / Etalab, credited in README and tool output). README has "Why", "Try it" (Claude Code + Claude Desktop with `uv --directory <path> run main.py`, checked over stdio), the eval table and the disclaimer. Audit: no data, DB, secrets or personal paths in any commit; `.gitignore` also blocks stray `*.db`/`*.zip`.
-- Next step: try it by hand in Claude Desktop (restart it to load the two-feed database), then decide between a freelance vocabulary fix (auto-entrepreneur → micro-entrepreneur, measured on the eval) and roadmap step 5 (`get_procedure_steps`).
+- Session 3 (2026-10-27), credibility pass (v0.1.0):
+  - CI: `.github/workflows/ci.yml` (uv, Python 3.11, `uv sync --locked`, pytest); badge in README.
+  - Eval split: `split` field, dev 65 / test 28 (93 questions). **Tune on dev only; test is only reported.** Reports are named `<date>-<code commit>-q<question set hash>.md`.
+  - Synonyms: `paperasse/synonyms.py`, run as query variants (`EXPANSION_MODE = "variants"` in `store.py`: the user's query always runs, plus one query per synonym, best score per fiche). Kept: auto-entrepreneur, chômage, enceinte; the rest were measured and rejected.
+  - Test split now (code `8b2687b`): top-1 46%, top-3 62%, MRR 0.57; sentences 33% top-1; freelance 3/8.
+  - `--rewrite` eval mode (`evals/rewrite.py`, Claude Haiku 5.5, cached in `evals/rewrites.jsonl`) is built but **not run**: no API key yet. If rewritten sentences stay below ~50% top-1, add hybrid BM25 + embeddings with RRF (plan in `docs/decisions.md`).
+  - Demo: `demo/demo.py` (real MCP client), `demo/demo.tape` (VHS), GIF in `docs/assets/demo.gif`, video attached to the v0.1.0 release (`demo/out/` is git-ignored).
+  - Remote hosting: plan only, in `docs/decisions.md` (Cloud Run recommended); nothing deployed.
+- Next step: put `ANTHROPIC_API_KEY` in `.env` and run `uv run --group eval python -m evals.run --rewrite`, then decide on embeddings; or roadmap step 5 (`get_procedure_steps`). Known gap: `low_confidence` only looks at the rank-1 result's `match`, so a strong match at rank 2 still gets flagged.
 
 ## Stack
 - Python 3.11+, managed with `uv`
@@ -38,7 +46,9 @@ Owner: Taha Medkouri. Personal side project, built on personal time and equipmen
 - Tests: `uv run pytest`
 - Download both feeds + build `data/fiches.jsonl`: `uv run python -m paperasse.ingest` (add `--no-download` to reparse `data/raw/particuliers/` and `data/raw/professionnels/` only)
 - Build search index `data/paperasse.db` from `data/fiches.jsonl`: `uv run python -m paperasse.store` (the server needs it)
-- Search eval: `uv run python -m evals.run` (writes `evals/results/<date>-<search code commit>.md`; `--no-save` to only print). Run it before and after any change that affects search.
+- Search eval: `uv run python -m evals.run` (writes `evals/results/<date>-<search code commit>-q<question set hash>.md`; `--no-save` to only print). Run it before and after any change that affects search, tune on the dev split only, and commit each report.
+- End-to-end eval with an LLM client: `uv run --group eval python -m evals.run --rewrite` (needs `ANTHROPIC_API_KEY` in env or `.env`; skips cleanly without it; rewrites cached in `evals/rewrites.jsonl`)
+- Demo: `uv run python demo/demo.py`; record with `vhs demo/demo.tape` (see `demo/README.md`)
 - Text quality checks (after re-ingesting): `uv run python -m scripts.dup_stats` (repeated text %), `uv run python -m scripts.check_fidelity` (every source paragraph reproduced)
 
 ## Target structure

@@ -4,7 +4,13 @@
 
 An open-source [MCP](https://modelcontextprotocol.io) server that lets AI assistants answer questions about French administrative procedures **from official sources only**, with a citable link and last update date for every answer. It covers the guides for individuals (service-public.gouv.fr) and for professionals and the self-employed (entreprendre.service-public.gouv.fr).
 
-> **Status:** early development. Ingestion of both official feeds, keyword search (SQLite FTS5) and a search eval work.
+> **Status:** early development (v0.1.0). Both official feeds, keyword search with synonyms, a dev/test search eval and CI work. Not hosted yet: run it locally (2 commands).
+
+## Demo
+
+![Paperasse answering "Je suis étudiant, est-ce que j'ai droit aux APL ?" with the official fiche, its link and update date](docs/assets/demo.gif)
+
+A real MCP client calling the server: question → `search_fiche` → `get_fiche` → official text with its link and update date (15 s, sped up). The full 2-minute video, which also shows an English freelancer question with a `low_confidence` retry and an off-topic question, is attached to the [v0.1.0 release](https://github.com/medkouritahaparis-create/paperasse-mcp/releases/tag/v0.1.0). In the demo the keyword rewriting an assistant would do is scripted and labelled; see [demo/](demo/).
 
 ## Why
 
@@ -56,26 +62,39 @@ Then ask, for example: *"Je suis étudiant, est-ce que j'ai droit aux APL ?"* or
 
 ## Search quality
 
-Measured with [evals/questions.jsonl](evals/questions.jsonl): 67 questions with expected fiches labelled by hand from the fiche titles, not from search results. Current results, 2026-10-27 (search code `337d5a8`, 3,673 fiches from both feeds, default `audience="all"`):
+Measured with [evals/questions.jsonl](evals/questions.jsonl): 93 questions whose expected fiches were labelled by hand from fiche **titles**, never from search results. They are split into **dev** (65, used to tune search) and **test** (28, only reported, never tuned on). Current results on the **test split**, 2026-10-27 (search code `8b2687b`, 3,673 fiches from both feeds):
 
-| Questions | n | Top-1 | Top-3 | MRR@10 |
+| Test split | n | Top-1 | Top-3 | MRR@10 |
 |---|---|---|---|---|
-| Everyday procedures, keywords as clients are told to send them ("APL étudiant") | 26 | 77% | 85% | 0.82 |
-| Everyday procedures, full sentences sent as is ("Comment avoir un garant gratuit pour louer ?") | 22 | 41% | 68% | 0.55 |
-| Freelancers / micro-entrepreneurs (8 keywords, 5 sentences) | 13 | 23% | 31% | 0.33 |
-| **All answerable** | 61 | **52%** | **67%** | **0.62** |
+| Keywords, as clients are told to send them ("APL étudiant") | 11 | 64% | 73% | 0.72 |
+| Full sentences, sent as is ("Comment avoir un garant gratuit pour louer ?") | 15 | 33% | 53% | 0.46 |
+| Freelancers / micro-entrepreneurs (keywords and sentences) | 8 | 38% | 50% | 0.47 |
+| **All answerable** | 26 | **46%** | **62%** | **0.57** |
+| *Same questions rewritten by an LLM client (Claude Haiku 5.5, `--rewrite`)* | 26 | *not measured yet* | | |
 
-On the 48 everyday questions, the first baseline (`4e93a4c`) scored 44% top-1, 75% top-3 and MRR 0.59. A mild boost for longer fiches, so main guides outrank short Q&A spin-offs, brought that to 62% / 79% / 0.71 ([report](evals/results/2026-10-26-7f5f470.md)). Adding the business feed costs one question (60% / 77% / 0.69), because word statistics are now shared with business fiches. Freelancer questions are the weak spot: users say "auto-entrepreneur" where the official titles say "micro-entrepreneur". Every option tried is in [docs/decisions.md](docs/decisions.md). Reports: [current](evals/results/2026-10-27-337d5a8.md), [baseline](evals/results/2026-10-26-4e93a4c.md).
+On dev (61 answerable): 54% top-1, 70% top-3, MRR 0.63. Full report: [evals/results/2026-10-27-8b2687b-q0c79b3.md](evals/results/2026-10-27-8b2687b-q0c79b3.md).
 
-`low_confidence` is set on all 6 questions that have no good answer (off-topic, English). It is also set on 7 of 32 questions whose rank-1 result is right (false alarms).
+**What moved the numbers** (each change measured before and after; every option tried, kept or rejected, is in [docs/decisions.md](docs/decisions.md)):
+
+| Change | Measured on | Before → after |
+|---|---|---|
+| Length prior: main guides outrank short Q&A spin-offs | first 48 questions | top-1 44% → 62%, top-3 75% → 79% |
+| *Entreprendre* feed + `audience="all"` | 13 freelance questions | top-3 0/13 → 4/13 |
+| Synonyms run as query variants (auto-entrepreneur → micro-entrepreneur, chômage → ARE, enceinte → grossesse) | dev | top-1 32 → 33, top-3 41 → 43 of 61 |
+| same | **test** (reported once) | top-1 42% → 46%, top-3 58% → 62%; freelance top-1 2/8 → 3/8, top-3 3/8 → 4/8 |
+
+Full sentences are the weak spot (33% top-1 on test). The `search_fiche` docstring tells the client model to rewrite questions into official keywords. The `--rewrite` mode measures exactly that with Claude Haiku and needs an API key; it hasn't been run yet. If rewritten sentences stay weak, the next step is hybrid BM25 + multilingual embeddings fused with RRF ([plan](docs/decisions.md)).
+
+`low_confidence` is set on all 6 questions that have no good answer (off-topic, English). On test it is also set on 3 of 12 questions whose rank-1 result is right (false alarms).
 
 Reproduce:
 
 ```bash
-uv run python -m evals.run
+uv run python -m evals.run                                  # writes evals/results/<date>-<code>-q<question set>.md
+uv run --group eval python -m evals.run --rewrite           # needs ANTHROPIC_API_KEY in .env; ~$0.03, cached afterwards
 ```
 
-The official feed is updated daily, so numbers can move slightly with the data. Each report records the code commit and the data snapshot. The set is small, so treat one question as about 2 points.
+The official feeds are updated daily, so numbers can move slightly with the data. Each report records the code commit, the question set and the data snapshot. The test split is small: one question is about 4 points.
 
 ## Development
 
@@ -83,9 +102,22 @@ The official feed is updated daily, so numbers can move slightly with the data. 
 uv run pytest                        # tests (no network, no data needed)
 uv run mcp dev main.py               # inspect the tools in the MCP Inspector
 uv run python -m evals.run           # search eval, writes evals/results/
+uv run python demo/demo.py           # terminal demo (a real MCP client); vhs demo/demo.tape records it
 ```
 
+CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the tests on every push and pull request. They need no network, data or API key.
+
 Design choices, with the options considered and the numbers behind them, are in [docs/decisions.md](docs/decisions.md).
+
+## Roadmap
+
+- [x] Ingest both official feeds (*Particuliers*, *Entreprendre*) into clean, verbatim fiches
+- [x] `search_fiche` / `get_fiche`: SQLite FTS5 (BM25), length prior, `low_confidence`, measured synonyms
+- [x] Search eval with a dev/test split, CI, scripted demo
+- [ ] Run the LLM-rewrite eval (`--rewrite`); add hybrid BM25 + embeddings only if rewritten sentences stay weak
+- [ ] `get_procedure_steps`: structured steps and required documents
+- [ ] Légifrance law articles (PISTE API) and `find_local_help` (France Services, préfectures, mairies)
+- [ ] Remote MCP server (Streamable HTTP) with a daily data refresh, so it can be added as a connector without installing. Plan and costs in [docs/decisions.md](docs/decisions.md); not deployed
 
 ## Licence and data
 
