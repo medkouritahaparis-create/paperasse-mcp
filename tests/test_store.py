@@ -3,13 +3,17 @@ from pathlib import Path
 import pytest
 
 from paperasse.ingest import parse_fiche
-from paperasse.store import FicheStore, build_index, query_terms, to_fts_query
+from paperasse import store as store_module
+from paperasse import synonyms
+from paperasse.store import (
+    FicheStore, build_index, expansions, fts_queries, query_terms, to_fts_query,
+)
 from tests.conftest import FICHES, make_fiche
 
 
 def test_fts_query_drops_stopwords_and_adds_prefixes():
     assert to_fts_query("Comment demander l'APL quand on est étudiant ?") == (
-        '"demander"* OR "apl" OR "étudiant"*'
+        '"demander"* OR "apl" OR "etudiant"*'
     )
 
 
@@ -155,3 +159,57 @@ def test_shared_fiche_url_follows_requested_audience(store):
     hit = store.search("congé naissance")[0]
     assert hit["audiences"] == ["particuliers", "professionnels"] and "urls" not in hit
     assert store.get("F6")["urls"] == {"particuliers": url("particuliers"), "professionnels": url("professionnels")}
+
+
+@pytest.fixture
+def rules(monkeypatch):
+    """A fixed synonym table, so these tests don't depend on the shipped one."""
+    monkeypatch.setattr(synonyms, "ONE_WAY", {"auto-entrepreneur": ["micro-entrepreneur"]})
+    monkeypatch.setattr(synonyms, "TWO_WAY", [["carte de séjour", "titre de séjour"]])
+    monkeypatch.setattr(store_module, "EXPANSION_MODE", "variants")
+
+
+def test_two_way_groups_expand_both_ways(rules):
+    assert ("titre de séjour", ["carte de séjour"]) in synonyms.rules()
+    assert ("carte de séjour", ["titre de séjour"]) in synonyms.rules()
+
+
+def test_expansions_match_phrases_ignoring_case_accents_and_plural(rules):
+    assert expansions("cotisations AUTO-ENTREPRENEURS") == [("auto-entrepreneur", ["micro-entrepreneur"])]
+    assert expansions("renouveler ma Carte de Sejour") == [("carte-de-sejour", ["titre-de-sejour"])]
+    assert expansions("carte grise") == []
+
+
+def test_variants_keep_the_original_query_first_and_never_replace_it(rules):
+    queries = fts_queries("retraite auto-entrepreneur")
+    assert queries == ['"retraite"* OR "auto entrepreneur"*', '"retraite"* OR "micro entrepreneur"*']
+    assert fts_queries("carte grise") == [to_fts_query("carte grise")]
+
+
+def test_or_mode_adds_synonyms_to_the_same_query(rules, monkeypatch):
+    monkeypatch.setattr(store_module, "EXPANSION_MODE", "or")
+    assert fts_queries("retraite auto-entrepreneur") == [
+        '"retraite"* OR "auto entrepreneur"* OR "micro entrepreneur"*'
+    ]
+
+
+def test_off_mode_ignores_synonyms(rules, monkeypatch):
+    monkeypatch.setattr(store_module, "EXPANSION_MODE", "off")
+    assert expansions("auto-entrepreneur") == []
+
+
+def test_search_finds_official_term_through_synonym(rules, store):
+    # F5 is "Devenir micro-entrepreneur"; the user says "auto-entrepreneur".
+    hit = store.search("auto-entrepreneur")[0]
+    assert hit["id"] == "F5"
+    assert hit["match"] == 1.0  # the synonym in the title counts as covering the query word
+
+
+def test_synonym_never_counts_twice(rules):
+    # No FTS query holds both a phrase and its synonym: in one OR query, BM25 would
+    # add both up, as if the user had said the word twice (on the real corpus this
+    # sank "Régime de retraite du micro-entrepreneur" to rank 25 for
+    # "retraite auto-entrepreneur"; see docs/decisions.md).
+    for q in fts_queries("cotisations retraite auto-entrepreneur"):
+        assert not ("auto entrepreneur" in q and "micro entrepreneur" in q)
+    assert len(fts_queries("cotisations retraite auto-entrepreneur")) == 2

@@ -79,7 +79,15 @@
 {"id": "q79", "question": "congé naissance travailleur indépendant", "expected": ["F39686"], "category": "freelance", "style": "keywords", "origin": "added-2026-10-27", "split": "dev"}
 {"id": "q80", "question": "Comment refaire ma carte d'identité perdue ?", "expected": ["F1344"], "category": "papiers", "style": "sentence", "origin": "added-2026-10-27", "split": "dev"}
 {"id": "q81", "question": "Combien coûte un passeport ?", "expected": ["F14929", "F21258"], "category": "papiers", "style": "sentence", "origin": "added-2026-10-27", "split": "test"}
-{"id": "q82", "question": "Comment s'inscrire à France Travail quand on perd son emploi ?", "expected": ["F1636"], "category": "travail", "style": "sentence", "origin": "added-2026-10-27", "split": "dev"}
+{"id": "q82", "question": "Pôle emploi justificatif inscription", "expected": ["F24465"], "category": "travail", "style": "keywords", "origin": "added-2026-10-27", "split": "dev", "note": "Replaced a near-duplicate of a test question (\"Je viens de perdre mon emploi, comment m'inscrire à France Travail ?\")."}
 {"id": "q83", "question": "J'ai perdu ma carte Vitale, que faire ?", "expected": ["F265"], "category": "sante", "style": "sentence", "origin": "added-2026-10-27", "split": "test"}
 {"id": "q84", "question": "Comment obtenir la prime de naissance de la CAF ?", "expected": ["F2550"], "category": "caf", "style": "sentence", "origin": "added-2026-10-27", "split": "test"}
 {"id": "q85", "question": "Quand dois-je faire ma déclaration de revenus ?", "expected": ["F358", "F359"], "category": "impots", "style": "sentence", "origin": "added-2026-10-27", "split": "test"}
+{"id": "q86", "question": "Comment devenir auto-entrepreneur ?", "expected": ["F23961"], "category": "freelance", "style": "sentence", "origin": "added-2026-10-27-vocabulary", "split": "dev"}
+{"id": "q87", "question": "fermer son auto-entreprise", "expected": ["F20678"], "category": "freelance", "style": "keywords", "origin": "added-2026-10-27-vocabulary", "split": "dev"}
+{"id": "q88", "question": "auto-entrepreneur plusieurs activités", "expected": ["F33339"], "category": "freelance", "style": "keywords", "origin": "added-2026-10-27-vocabulary", "split": "dev"}
+{"id": "q89", "question": "graphiste freelance", "expected": ["F36832"], "category": "freelance", "style": "keywords", "origin": "added-2026-10-27-vocabulary", "split": "dev"}
+{"id": "q90", "question": "titre de séjour pluriannuel", "expected": ["F35799"], "category": "sejour", "style": "keywords", "origin": "added-2026-10-27-vocabulary", "split": "dev"}
+{"id": "q91", "question": "Comment percevoir le chômage après un licenciement ?", "expected": ["F14860", "F38881"], "category": "travail", "style": "sentence", "origin": "added-2026-10-27-vocabulary", "split": "dev"}
+{"id": "q92", "question": "Que veut dire mon numéro de sécu ?", "expected": ["F33078"], "category": "sante", "style": "sentence", "origin": "added-2026-10-27-vocabulary", "split": "dev"}
+{"id": "q93", "question": "mutuelle entreprise salarié", "expected": ["F20739"], "category": "sante", "style": "keywords", "origin": "added-2026-10-27-vocabulary", "split": "dev"}

@@ -15,6 +15,7 @@ from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+from paperasse import synonyms
 from paperasse.ingest import AUDIENCES, DATA_DIR, Fiche, strip_links
 
 DB_PATH = DATA_DIR / "paperasse.db"
@@ -45,6 +46,11 @@ peut dois doit est-ce
 # summary, weighted by rarity (IDF), cover less than this share of the query.
 # Chosen on labelled and off-topic queries: see docs/decisions.md.
 MIN_CONFIDENT_MATCH = 0.5
+
+# How synonyms (paperasse/synonyms.py) are used: "variants" runs one extra
+# query per synonym and keeps each fiche's best score; "or" adds them to the
+# same query; "off" ignores them. Chosen on the eval: see docs/decisions.md.
+EXPANSION_MODE = "variants"
 
 _SCHEMA = f"""
 CREATE TABLE fiches (
@@ -143,14 +149,75 @@ def _fts_term(term: str) -> str:
     return '"' + term.replace("-", " ") + '"' + ("*" if len(last) >= 4 else "")
 
 
+def _phrase(text: str) -> str:
+    """Folded phrase as a hyphenated term: "Carte de séjour" -> "carte-de-sejour"."""
+    return "-".join(re.findall(r"\w+", _fold(text)))
+
+
+def expansions(query: str) -> list[tuple[str, list[str]]]:
+    """Synonym rules (see paperasse/synonyms.py) whose phrase is in the query.
+
+    Returns (phrase found, phrases to add), all folded and hyphenated.
+    """
+    if EXPANSION_MODE == "off":
+        return []
+    words = re.findall(r"\w+", _fold(query))
+    return [
+        (_phrase(key), [_phrase(s) for s in syns])
+        for key, syns in synonyms.rules()
+        if _contains(_phrase(key), words)
+    ]
+
+
+def _or_query(terms: list[str]) -> str | None:
+    out: list[str] = []
+    for t in terms:
+        if _fold(t) not in out:
+            out.append(_fold(t))
+    return " OR ".join(_fts_term(t) for t in out) or None
+
+
+def _covered(term: str, phrase: str) -> bool:
+    """Whether a query term is part of a (folded, hyphenated) synonym phrase."""
+    return set(_fold(term).split("-")) <= set(phrase.split("-"))
+
+
 def to_fts_query(query: str) -> str | None:
     """Turn a natural-language question into a safe FTS5 query.
 
     Words are quoted (so user input can't inject FTS syntax) and OR-ed, so a
     fiche doesn't need every word to match; BM25 ranks the best ones first.
-    Returns None if nothing is left.
+    In "or" expansion mode, synonyms are added to the same query. Returns None
+    if nothing is left.
     """
-    return " OR ".join(_fts_term(t) for t in query_terms(query)) or None
+    terms = query_terms(query)
+    if EXPANSION_MODE == "or":
+        terms += [t for _, added in expansions(query) for t in added]
+    return _or_query(terms)
+
+
+def fts_queries(query: str) -> list[str]:
+    """The FTS5 queries to run for a question: the question itself first.
+
+    In "variants" mode, each synonym gives one more query where the phrase is
+    swapped for the synonym ("retraite auto-entrepreneur" -> "retraite
+    micro-entrepreneur"). The user's own query always runs; a fiche keeps its
+    best score across the queries, so a synonym can lift a fiche but never
+    counts twice.
+    """
+    first = to_fts_query(query)
+    if first is None:
+        return []
+    out = [first]
+    if EXPANSION_MODE == "variants":
+        terms = query_terms(query)
+        for phrase, added in expansions(query):
+            rest = [t for t in terms if not _covered(t, phrase)]
+            for syn in added:
+                q = _or_query(rest + [syn])
+                if q and q not in out:
+                    out.append(q)
+    return out
 
 
 def _fold(text: str) -> str:
@@ -208,9 +275,17 @@ class FicheStore:
         if not terms:
             return 0.0
         words = re.findall(r"\w+", _fold(f"{title} {summary}"))
+        rules = expansions(query)
         weights = {t: self.idf(t) for t in terms}
-        found = sum(w for t, w in weights.items() if _contains(t, words))
-        return found / sum(weights.values())
+
+        def found(term: str) -> bool:
+            # A query word also counts as found through a synonym of a phrase it belongs to
+            # ("auto-entrepreneur" in the query, "micro-entrepreneur" in the title).
+            parts = set(term.split("-"))
+            alternatives = [term] + [a for key, added in rules if parts <= set(key.split("-")) for a in added]
+            return any(_contains(a, words) for a in alternatives)
+
+        return sum(w for t, w in weights.items() if found(t)) / sum(weights.values())
 
     def search(self, query: str, limit: int = 5, audience: str = "all") -> list[dict[str, Any]]:
         """Best matching fiches for a question, most relevant first.
@@ -221,25 +296,26 @@ class FicheStore:
         """
         if audience != "all" and audience not in AUDIENCES:
             raise ValueError(f"Unknown audience {audience!r}")
-        fts = to_fts_query(query)
-        if fts is None:
-            return []
         weights = ", ".join(str(w) for w in BM25_WEIGHTS)
-        rows = self.conn.execute(
-            f"""
-            SELECT f.id, f.title, f.summary, f.url, f.urls, f.audiences, f.updated_at, f.theme,
-                   bm25(fiches_fts, {weights}) AS bm25, f.text_len
-            FROM fiches_fts
-            JOIN fiches f ON f.rowid = fiches_fts.rowid
-            WHERE fiches_fts MATCH ? AND (? = 'all' OR f.audiences LIKE '%"' || ? || '"%')
-            ORDER BY bm25
-            LIMIT ?
-            """,
-            (fts, audience, audience, max(limit, RERANK_POOL)),
-        ).fetchall()
-        # bm25() is negative, lower is better; the prior makes longer fiches more negative.
-        rows = sorted(rows, key=lambda r: r["bm25"] * (1 + LENGTH_PRIOR * math.log1p(r["text_len"])))
-        results = [dict(r) for r in rows[:limit]]
+        best: dict[str, tuple[float, dict[str, Any]]] = {}
+        for fts in fts_queries(query):
+            for row in self.conn.execute(
+                f"""
+                SELECT f.id, f.title, f.summary, f.url, f.urls, f.audiences, f.updated_at, f.theme,
+                       bm25(fiches_fts, {weights}) AS bm25, f.text_len
+                FROM fiches_fts
+                JOIN fiches f ON f.rowid = fiches_fts.rowid
+                WHERE fiches_fts MATCH ? AND (? = 'all' OR f.audiences LIKE '%"' || ? || '"%')
+                ORDER BY bm25
+                LIMIT ?
+                """,
+                (fts, audience, audience, max(limit, RERANK_POOL)),
+            ):
+                # bm25() is negative, lower is better; the prior makes longer fiches more negative.
+                key = row["bm25"] * (1 + LENGTH_PRIOR * math.log1p(row["text_len"]))
+                if row["id"] not in best or key < best[row["id"]][0]:
+                    best[row["id"]] = (key, dict(row))
+        results = [r for _, r in sorted(best.values(), key=lambda kr: kr[0])[:limit]]
         for r in results:
             del r["bm25"], r["text_len"]
             urls = json.loads(r.pop("urls"))
