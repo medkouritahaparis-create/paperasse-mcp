@@ -172,3 +172,31 @@ Each entry: context, options, decision, why.
 - **Rule:** search settings (weights, priors, synonyms, thresholds) are tuned and compared on **dev only**. **Test** is run only to report a final number, never to choose between options. If test numbers ever drive a change, that test set is spent and must be replaced by new questions.
 - **Caveat:** 18 of the 26 test questions were part of the set that steps 4 and 5 were tuned on, so the test split is only clean from now on. The 18 new questions show the size of the effect. On search code `337d5a8`, the 61 previously seen questions score 52% top-1 / 67% top-3 / MRR 0.62. The 18 new ones score 44% / 50% / 0.50: harder (mostly sentences and freelance) and never tuned on.
 - **Baseline on the new set** (search code `337d5a8`, report `evals/results/2026-10-27-337d5a8-q765f33.md`): dev 55% top-1 / 66% top-3 / MRR 0.62; **test 42% / 58% / 0.53**. Freelance: dev 41% / 41%, test 25% / 38%.
+
+## 2026-10-27 — Query expansion with a synonym table
+
+- **Context:** users say "auto-entrepreneur", "chômage" or "Pôle emploi", while official titles say "micro-entrepreneur", "allocation chômage (ARE)" or "France Travail". Freelance top-1 was 25% on test.
+- **Dev set first:** by chance, only 2 dev questions used the targeted words. I added 8 dev questions in everyday vocabulary (labelled from titles; dev by construction, so test is untouched). I also replaced one new dev question that almost duplicated a test question ("Comment s'inscrire à France Travail…" vs "Je viens de perdre mon emploi, comment m'inscrire à France Travail ?"): leaving it would have leaked test into tuning. That makes 93 questions, dev 65 (61 answerable), test 28 (unchanged). Report on the old code with this set: `evals/results/2026-10-27-337d5a8-q0c79b3.md`.
+- **Two ways to expand** (the user's words are always kept, never replaced):
+  - **"or":** add the synonym to the same OR query. BM25 then adds the scores of both words, so a fiche that names "micro-entrepreneur (auto-entrepreneur)" in its text counts the concept twice and buries the rest of the query. On the real index, "retraite auto-entrepreneur" put *Régime de retraite du micro-entrepreneur* (F23369) at BM25 rank 25.
+  - **"variants":** run the user's query, plus one query per synonym with the phrase swapped ("retraite micro-entrepreneur"). Each fiche keeps its best score. A synonym can lift a fiche but never counts twice, and `match()` counts a synonym in the title as covering the user's word.
+- **Results on dev** (61 answerable; top-1 / top-3 / MRR; baseline with no expansion: 32 / 41 / 0.605). Each rule was tested alone:
+
+  | Rule | "or" | "variants" | Verdict |
+  |---|---|---|---|
+  | auto-entrepreneur → micro-entrepreneur | 32 / 41 / 0.605 | **32 / 42 / 0.612** (q68 7→3, q88 >10→4) | **kept** |
+  | chômage → allocation chômage, ARE | 32 / 41 / 0.607 | **32 / 41 / 0.607** (q91 3→2) | **kept** |
+  | enceinte → grossesse | 32 / 41 / 0.606 | **33 / 42 / 0.621** (q44 >10→1) | **kept** (q44 was a known gap: dev is optimistic here) |
+  | micro-entreprise → micro-entrepreneur | 31 / 41 / 0.600 | 32 / 41 / 0.603 (q61 9→>10) | rejected |
+  | carte de séjour ↔ titre de séjour | 31 / 41 / 0.594 | 32 / 41 / 0.602 (q12 1→3, q15 2→1) | rejected |
+  | mutuelle → complémentaire santé | 32 / 41 / 0.605 | 32 / 41 / 0.602 (q93 2→3) | rejected |
+  | APL ↔ aide au logement, Pôle emploi → France Travail, sécu / sécurité sociale → Assurance maladie, freelance → micro-entrepreneur / travailleur indépendant, auto-entreprise → micro-entreprise, caution → dépôt de garantie, arrêt maladie → indemnités journalières | no change | no change | rejected: no evidence on dev |
+  | all 15 together | 30 / 41 / 0.594 | 33 / 43 / 0.624 | — |
+
+- **Decision:** "variants" mode (`EXPANSION_MODE` in `store.py`) with the 3 rules that helped (`paperasse/synonyms.py`). Rules with no measured effect are left out rather than kept on faith. A rule is added back when a dev question shows the need.
+- **Result:**
+  - Dev: 32 / 41 / 0.605 → **33 / 43 / 0.631**; freelance top-3 9 → 10.
+  - Test, reported once and not used to choose: 11 → **12** top-1 (42% → **46%**), 15 → **16** top-3 (58% → **62%**), MRR 0.53 → **0.57**; freelance 2/8 → **3/8** top-1.
+  - `low_confidence` is unchanged: all no-match questions flagged; false alarms 7 → 6 on dev.
+  - Report: `evals/results/2026-10-27-8b2687b-q0c79b3.md`.
+- **Seen while debugging, not fixed here:** full sentences lose to everyday verbs that are not stopwords ("suis", "peux", "veux"). "Je suis étudiant, est-ce que je peux être auto-entrepreneur ?" ranks *Je pars de chez mes parents* first. Step 4 below measures whether the client's rewrite into keywords already solves this.
