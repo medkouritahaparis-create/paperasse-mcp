@@ -12,6 +12,10 @@ An open-source [MCP](https://modelcontextprotocol.io) server that lets AI assist
 
 A real MCP client calling the server: question → `search_fiche` → `get_fiche` → official text with its link and update date (15 s, sped up). The full 2-minute video, which also shows an English freelancer question with a `low_confidence` retry and an off-topic question, is attached to the [v0.1.0 release](https://github.com/medkouritahaparis-create/paperasse-mcp/releases/tag/v0.1.0). In the demo the keyword rewriting an assistant would do is scripted and labelled; see [demo/](demo/).
 
+
+https://github.com/user-attachments/assets/6e271201-e9ae-48b5-8b47-abf22a0778f8
+
+
 ## Why
 
 French administrative procedures are hard to navigate, and general-purpose AI assistants answer questions about them from memory: rules change every year (amounts, thresholds, deadlines), and a confident but outdated answer about the CAF, taxes or a residence permit can cost someone money or a deadline. The official guides already exist, are kept up to date by the DILA and are open data.
