@@ -3,6 +3,9 @@ name = "paperasse-mcp"
 version = "0.1.0"
 description = "MCP server answering questions on French administrative procedures from official sources only"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Taha Medkouri" }]
 dependencies = [
     "mcp[cli]>=2.3.0",
 ]

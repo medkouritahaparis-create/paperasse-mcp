@@ -21,7 +21,8 @@ Owner: Taha Medkouri. Personal side project, built on personal time and equipmen
   - Step 3 done: `evals/questions.jsonl` (57 questions, labelled from fiche titles) and `evals/run.py`. Baseline (code 4e93a4c): keywords top-1 50% / top-3 85%; sentences 36% / 64%; all 44% / 75%, MRR 0.59. Report in `evals/results/2026-10-26-4e93a4c.md`, numbers in the README.
   - Step 4 done: the top 50 BM25 hits are re-ranked with a length prior (`LENGTH_PRIOR` = 0.075 in `store.py`). All: top-1 44% → 62%, top-3 75% → 79%, MRR 0.59 → 0.71. Every option tried, kept or rejected, is in `docs/decisions.md`. The `low_confidence` threshold stays at 0.5 (re-check after step 5).
   - Step 5 done (2026-10-27): both feeds ingested (`FEEDS` in `ingest.py`). 3,673 fiches: 3,004 *Particuliers* + 775 *Professionnels*, 106 in both, merged with one URL per site (`urls`). `search_fiche(audience=...)` takes "all" (default), "particuliers" or "professionnels", and returns the URL for that audience's site. Hyphenated query words are one phrase term. Eval: 67 questions (13 freelance); all top-1 52%, top-3 67%, MRR 0.62; freelance top-1 only 3/13 (vocabulary: auto-entrepreneur vs micro-entrepreneur). Threshold stays 0.5. Details in `docs/decisions.md`.
-- Next step: review step 6, open-source hygiene (LICENSE, README "Why" / "Try it", .gitignore check).
+  - Step 6 done (2026-10-27): MIT `LICENSE` (code only; served content stays Licence Ouverte / Etalab, credited in README and tool output). README has "Why", "Try it" (Claude Code + Claude Desktop with `uv --directory <path> run main.py`, checked over stdio), the eval table and the disclaimer. Audit: no data, DB, secrets or personal paths in any commit; `.gitignore` also blocks stray `*.db`/`*.zip`.
+- Next step: try it by hand in Claude Desktop (restart it to load the two-feed database), then decide between a freelance vocabulary fix (auto-entrepreneur → micro-entrepreneur, measured on the eval) and roadmap step 5 (`get_procedure_steps`).
 
 ## Stack
 - Python 3.11+, managed with `uv`
@@ -52,7 +53,8 @@ paperasse-mcp/
 ├── data/                # downloaded XML + generated DB (git-ignored)
 ├── evals/               # question → expected fiche ID test set + runner
 ├── tests/
-└── docs/decisions.md    # architecture decision log
+├── docs/decisions.md    # architecture decision log
+└── LICENSE              # MIT (code only; content is Licence Ouverte / Etalab)
 ```
 
 ## Tools (planned)

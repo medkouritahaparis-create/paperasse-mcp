@@ -4,15 +4,46 @@ An open-source [MCP](https://modelcontextprotocol.io) server that lets AI assist
 
 > **Status:** early development. Ingestion of both official feeds, keyword search (SQLite FTS5) and a search eval work.
 
-## Quick start
+## Why
+
+French administrative procedures are hard to navigate, and general-purpose AI assistants answer questions about them from memory: rules change every year (amounts, thresholds, deadlines), and a confident but outdated answer about the CAF, taxes or a residence permit can cost someone money or a deadline. The official guides already exist, are kept up to date by the DILA and are open data.
+
+Paperasse gives an assistant those guides instead of its memory. It searches the official fiches, returns their text word for word with the official link and last update date, and says when it found nothing relevant. The assistant explains and cites; the server never writes or rewords the content.
+
+## Try it
+
+You need [uv](https://docs.astral.sh/uv/) and about a minute to download the official feeds and build the index:
 
 ```bash
+git clone https://github.com/medkouritahaparis-create/paperasse-mcp.git
+cd paperasse-mcp
 uv sync
-uv run python -m paperasse.ingest   # download both official feeds and build data/fiches.jsonl
+uv run python -m paperasse.ingest   # download both official feeds (about 35 MB) into data/
 uv run python -m paperasse.store    # build the search index data/paperasse.db
-uv run mcp dev main.py              # inspect the tools in the MCP Inspector
-uv run pytest
 ```
+
+**Claude Code:** open Claude Code in the repo folder: [.mcp.json](.mcp.json) registers the server. From anywhere else:
+
+```bash
+claude mcp add paperasse -- uv --directory /absolute/path/to/paperasse-mcp run main.py
+```
+
+**Claude Desktop:** add this to `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/`, Windows: `%APPDATA%\Claude\`), keeping your other servers, then restart Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "paperasse": {
+      "command": "uv",
+      "args": ["--directory", "/absolute/path/to/paperasse-mcp", "run", "main.py"]
+    }
+  }
+}
+```
+
+If Claude Desktop can't find `uv`, use its full path (the output of `which uv`) as `command`.
+
+Then ask, for example: *"Je suis étudiant, est-ce que j'ai droit aux APL ?"* or *"How do I declare my micro-entrepreneur revenue?"*. The answer should cite a service-public.gouv.fr or entreprendre.service-public.gouv.fr link.
 
 ## Tools
 
@@ -44,12 +75,24 @@ uv run python -m evals.run
 
 The official feed is updated daily, so numbers can move slightly with the data. Each report records the code commit and the data snapshot. The set is small, so treat one question as about 2 points.
 
-## Data and licence
+## Development
 
-Content comes from **Service-Public.gouv.fr / DILA** (Direction de l'information légale et administrative), published as open data under the [Licence Ouverte / Etalab](https://www.etalab.gouv.fr/licence-ouverte-open-licence). Two feeds, both schema 3.5:
+```bash
+uv run pytest                        # tests (no network, no data needed)
+uv run mcp dev main.py               # inspect the tools in the MCP Inspector
+uv run python -m evals.run           # search eval, writes evals/results/
+```
+
+Design choices, with the options considered and the numbers behind them, are in [docs/decisions.md](docs/decisions.md).
+
+## Licence and data
+
+The **code** is under the [MIT licence](LICENSE), © 2026 Taha Medkouri.
+
+The **content** it serves is not covered by that licence: it comes from **Service-Public.gouv.fr / DILA** (Direction de l'information légale et administrative) and stays under the [Licence Ouverte / Etalab](https://www.etalab.gouv.fr/licence-ouverte-open-licence). Every tool response credits the source. The data is downloaded at install time and is not stored in this repository. Two feeds, both schema 3.5:
 
 - [Fiches pratiques et ressources de Service-Public.gouv.fr Particuliers](https://www.data.gouv.fr/datasets/fiches-pratiques-et-ressources-de-service-public-gouv-fr-particuliers): guides for individuals, on service-public.gouv.fr.
-- [Fiches pratiques et ressources Entreprendre - Service-Public.gouv.fr](https://www.data.gouv.fr/datasets/fiches-pratiques-et-ressources-entreprendre-service-public-gouv-fr): guides for businesses and the self-employed, on entreprendre.service-public.gouv.fr. Downloaded from `https://lecomarquage.service-public.gouv.fr/vdd/3.5/pro/zip/vosdroits-latest.zip`.
+- [Fiches pratiques et ressources Entreprendre - Service-Public.gouv.fr](https://www.data.gouv.fr/datasets/fiches-pratiques-et-ressources-entreprendre-service-public-gouv-fr): guides for businesses and the self-employed, on entreprendre.service-public.gouv.fr.
 
 ## Disclaimer
 

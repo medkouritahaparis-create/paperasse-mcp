@@ -6,9 +6,16 @@ __pycache__/
 
 # Downloaded feed and generated databases: never commit
 data/
+# ...even if a tool writes them somewhere else by mistake
+*.db
+*.sqlite
+*.zip
+*.tmp
 
 # Secrets (PISTE credentials, API keys)
 .env
 .env.*
 
 .DS_Store
+# Local Claude Code settings (may hold personal paths)
+.claude/settings.local.json

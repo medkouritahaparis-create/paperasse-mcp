@@ -158,3 +158,9 @@ Each entry: context, options, decision, why.
   - Vocabulary: users say "auto-entrepreneur" and "micro-entreprise", while titles say "micro-entrepreneur". The `search_fiche` docstring now gives that translation as an example, which helps real clients but not the eval, which sends questions as is.
   - Full sentences: 0/5 freelance sentences are in the top 3, the same weakness as the *Particuliers* sentences.
   - Candidates for a later ranking step, measured the same way: a small synonym list for official renames, or light stemming.
+
+## 2026-10-27 — Licences: MIT for the code, Licence Ouverte for the content (review step 6)
+
+- **Context:** the repo is public and meant to be reused. It contains code; the content it serves belongs to the DILA.
+- **Decision:** the code is MIT (`LICENSE`, © 2026 Taha Medkouri, also declared in `pyproject.toml`). The official content keeps its own licence, the Licence Ouverte / Etalab, and is credited as "Service-Public.gouv.fr / DILA" in the README and in every tool response (`source`). The data is never committed: users download it from the official feeds at install time, so the repo never redistributes a stale copy.
+- **Why:** MIT is short, permissive and standard for small tools, and compatible with the Licence Ouverte, which only requires attribution. Keeping the two licences apart in the README avoids suggesting the MIT licence covers government content.
