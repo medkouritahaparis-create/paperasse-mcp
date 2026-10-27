@@ -1,5 +1,7 @@
 # Paperasse MCP
 
+[![CI](https://github.com/medkouritahaparis-create/paperasse-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/medkouritahaparis-create/paperasse-mcp/actions/workflows/ci.yml)
+
 An open-source [MCP](https://modelcontextprotocol.io) server that lets AI assistants answer questions about French administrative procedures **from official sources only**, with a citable link and last update date for every answer. It covers the guides for individuals (service-public.gouv.fr) and for professionals and the self-employed (entreprendre.service-public.gouv.fr).
 
 > **Status:** early development. Ingestion of both official feeds, keyword search (SQLite FTS5) and a search eval work.
