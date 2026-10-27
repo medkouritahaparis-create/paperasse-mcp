@@ -15,6 +15,7 @@ rank-1 result is correct is a false alarm; a flag when it is wrong is a useful
 warning.
 
 Usage: uv run python -m evals.run [--no-save]
+       uv run --group eval python -m evals.run --rewrite   (queries written by Claude Haiku: see evals/rewrite.py)
 Writes evals/results/<date>-<search code commit>-q<question set hash>.md unless --no-save.
 """
 
@@ -46,9 +47,14 @@ def load_questions(path: Path = QUESTIONS) -> list[dict]:
 
 
 def run_one(q: dict) -> dict:
-    """Search one question. Returns ids, titles, rank of the first expected id, flags."""
+    """Search one question. Returns ids, titles, rank of the first expected id, flags.
+
+    With --rewrite, `q` carries the model's `query` (and `audience`, if it chose
+    one); otherwise the question is sent as written, with the default audience.
+    """
     try:
-        out = main.search_fiche(q["question"], limit=DEPTH)
+        out = main.search_fiche(q.get("query") or q["question"], audience=q.get("audience") or main.DEFAULT_AUDIENCE,
+                                limit=DEPTH)
         results, low = out["results"], out["low_confidence"]
     except ToolError:
         results, low = [], None  # no results at all
@@ -142,9 +148,10 @@ def _pct(a: int, b: int) -> str:
     return f"{a}/{b} ({a / b:.0%})" if b else "n/a"
 
 
-def report(runs: list[dict], s: dict) -> str:
+def report(runs: list[dict], s: dict, rewrite_cost: dict | None = None) -> str:
     lines = [
-        f"# Search eval — {dt.date.today().isoformat()}",
+        f"# Search eval — {dt.date.today().isoformat()}"
+        + (f" — queries rewritten by {rewrite_cost['model']}" if rewrite_cost else ""),
         "",
         f"- Search code (`main.py`, `paperasse/`): `{_git_commit()}`",
         f"- Data: {_data_snapshot()}",
@@ -212,6 +219,16 @@ def report(runs: list[dict], s: dict) -> str:
     lines += ["", "## False alarms (rank 1 is right, but flagged low_confidence)", ""]
     alarms = [r for r in runs if r["rank"] == 1 and _flagged(r)]
     lines += [f"- {r['id']} {r['question']} ({r['style']}, top match {r['matches'][0]})" for r in alarms] or ["- none"]
+
+    if rewrite_cost:
+        lines += ["", f"## Rewritten queries ({rewrite_cost['model']})", "",
+                  f"Cost of the whole set without the cache: ${rewrite_cost['full_run_cost_usd']:.4f}; "
+                  f"spent by this run: ${rewrite_cost['new_cost_usd']:.4f}.", "",
+                  "| Id | Question | Query sent | Audience | Rank |", "|---|---|---|---|---|"]
+        for r in runs:
+            query = r.get("query") or "(no search: question sent as is)"
+            lines.append(f"| {r['id']} | {r['question']} | {query} | {r.get('audience') or 'default'} | "
+                         f"{r['rank'] or ('-' if not r['expected'] else f'>{DEPTH}')} |")
     return "\n".join(lines) + "\n"
 
 
@@ -220,15 +237,29 @@ def main_cli() -> None:
     stale = check_labels(questions)
     if stale:
         sys.exit("Expected fiche ids missing from the database (feed changed?): " + ", ".join(stale))
+    cost = None
+    if "--rewrite" in sys.argv:
+        from evals.rewrite import RewriteUnavailable, rewrite_all
+        try:
+            rewrites, cost = rewrite_all(questions)
+        except RewriteUnavailable as e:
+            print(f"Skipped: {e}")
+            return
+        for q in questions:
+            args = rewrites[q["id"]]["arguments"] or {}
+            q["query"], q["audience"] = args.get("query"), args.get("audience")
+        print(f"Rewrites by {cost['model']}: this run cost ${cost['new_cost_usd']:.4f} "
+              f"(whole set without cache: ${cost['full_run_cost_usd']:.4f})")
     runs = [run_one(q) for q in questions]
     s = score(runs)
-    text = report(runs, s)
+    text = report(runs, s, cost)
     print(text)
     if "--no-save" not in sys.argv:
         RESULTS_DIR.mkdir(parents=True, exist_ok=True)
         # One file per search-code version, so a later run never overwrites a baseline.
         commit = _git_commit().split()[0]
         suffix = "-uncommitted" if "uncommitted" in _git_commit() else ""
+        suffix += "-rewrite" if cost else ""
         out = RESULTS_DIR / f"{dt.date.today().isoformat()}-{commit}{suffix}-q{questions_hash()}.md"
         out.write_text(text, encoding="utf-8")
         print(f"Saved {out.relative_to(EVALS_DIR.parent)}")
