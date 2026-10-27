@@ -4,7 +4,7 @@
 
 An open-source [MCP](https://modelcontextprotocol.io) server that lets AI assistants answer questions about French administrative procedures **from official sources only**, with a citable link and last update date for every answer. It covers the guides for individuals (service-public.gouv.fr) and for professionals and the self-employed (entreprendre.service-public.gouv.fr).
 
-> **Status:** early development (v0.1.0). Both official feeds, keyword search with synonyms, a dev/test search eval and CI work. Not hosted yet: run it locally (2 commands).
+> **Status:** early development (v0.1.0). Both official feeds, keyword search with synonyms, a dev/test search eval and CI work. There is no hosted version, by design: you install it on your machine (about a minute), so your questions stay local.
 
 ## Demo
 
@@ -29,6 +29,8 @@ uv sync
 uv run python -m paperasse.ingest   # download both official feeds (about 35 MB) into data/
 uv run python -m paperasse.store    # build the search index data/paperasse.db
 ```
+
+To refresh the data later (the official feeds are updated daily), run the same two commands again.
 
 **Claude Code:** open Claude Code in the repo folder: [.mcp.json](.mcp.json) registers the server. From anywhere else:
 
@@ -117,7 +119,6 @@ Design choices, with the options considered and the numbers behind them, are in 
 - [ ] Run the LLM-rewrite eval (`--rewrite`); add hybrid BM25 + embeddings only if rewritten sentences stay weak
 - [ ] `get_procedure_steps`: structured steps and required documents
 - [ ] Légifrance law articles (PISTE API) and `find_local_help` (France Services, préfectures, mairies)
-- [ ] Remote MCP server (Streamable HTTP) with a daily data refresh, so it can be added as a connector without installing. Plan and costs in [docs/decisions.md](docs/decisions.md); not deployed
 
 ## Licence and data
 

@@ -219,7 +219,7 @@ Each entry: context, options, decision, why.
 
 ## 2026-10-27 — Plan: hosting Paperasse as a remote MCP server (not deployed)
 
-Plan only. Nothing is deployed and no account is created without the owner's approval.
+**Superseded the same day: not pursued.** The owner chose local install only (see the next entry). The plan is kept for reference.
 
 - **Goal:** anyone can add Paperasse as a custom connector in Claude (or any MCP client) by pasting a URL, with no clone, no `uv` and no data build.
 - **Transport:** MCP **Streamable HTTP**. The SDK already supports it: `mcp.run(transport="streamable-http")`, or `mcp.streamable_http_app()` mounted in an ASGI server (uvicorn) for a `/mcp` endpoint. stdio stays the default for local use, chosen by a `--http` flag or a `PAPERASSE_TRANSPORT` variable. The tools don't change.
@@ -249,3 +249,18 @@ Plan only. Nothing is deployed and no account is created without the owner's app
   3. Add the nightly build-and-deploy workflow with the quality gates above.
   4. Optionally, a custom domain.
   5. README: a "Use it without installing" section with the connector URL.
+
+## 2026-10-27 — No hosting: local install only
+
+- **Context:** the previous entry planned a remote MCP server (Cloud Run, nightly rebuild) so people could add Paperasse as a connector without installing anything.
+- **Options:** (a) host it, as planned; (b) no hosted version: whoever wants to use it clones the repo and installs it locally, as the README's "Try it" section describes (uv, download the feeds, build the index, add it to Claude Code or Claude Desktop).
+- **Decision:** (b), the owner's choice.
+- **Why:**
+  - No running service, so no cloud account, bill, monitoring, rate limiting or uptime to maintain for a personal side project.
+  - Questions never leave the user's machine for a third-party server. People may describe personal situations in them, so this is the most private setup.
+  - Each user downloads the official feeds themselves, under the Licence Ouverte, so the project never redistributes content and can't serve a stale copy to others.
+  - The cost moves to the user: a one-time install of about a minute, and re-running `paperasse.ingest` and `paperasse.store` to refresh the data.
+- **Consequences:**
+  - The README presents local install as the way to use it.
+  - The roadmap no longer has a hosting step.
+  - The HTTP transport isn't added. stdio stays the only transport.

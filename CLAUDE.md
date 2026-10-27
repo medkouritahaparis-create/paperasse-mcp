@@ -29,7 +29,7 @@ Owner: Taha Medkouri. Personal side project, built on personal time and equipmen
   - Test split now (code `8b2687b`): top-1 46%, top-3 62%, MRR 0.57; sentences 33% top-1; freelance 3/8.
   - `--rewrite` eval mode (`evals/rewrite.py`, Claude Haiku 5.5, cached in `evals/rewrites.jsonl`) is built but **not run**: no API key yet. If rewritten sentences stay below ~50% top-1, add hybrid BM25 + embeddings with RRF (plan in `docs/decisions.md`).
   - Demo: `demo/demo.py` (real MCP client), `demo/demo.tape` (VHS), GIF in `docs/assets/demo.gif`, video attached to the v0.1.0 release (`demo/out/` is git-ignored).
-  - Remote hosting: plan only, in `docs/decisions.md` (Cloud Run recommended); nothing deployed.
+  - No hosting (owner's decision, 2026-10-27): users install locally as in the README. The earlier remote-hosting plan in `docs/decisions.md` is marked superseded. Don't add an HTTP transport or deployment without asking.
 - Next step: put `ANTHROPIC_API_KEY` in `.env` and run `uv run --group eval python -m evals.run --rewrite`, then decide on embeddings; or roadmap step 5 (`get_procedure_steps`). Known gap: `low_confidence` only looks at the rank-1 result's `match`, so a strong match at rank 2 still gets flagged.
 
 ## Stack
@@ -94,4 +94,4 @@ paperasse-mcp/
 4. Small eval set: ~50 questions → expected fiche IDs, measure top-1 / top-3 accuracy
 5. `get_procedure_steps`
 6. Légifrance (PISTE) + `find_local_help`
-7. Host remotely so others can add it as a connector; README with eval results
+7. ~~Host remotely~~ Dropped (2026-10-27): local install only. README with eval results: done
